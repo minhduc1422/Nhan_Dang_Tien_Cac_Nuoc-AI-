@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Nhập & Đăng Ký</title>
+    <link rel="stylesheet" href="/static/styles.css">
+
+</head>
+<body>
+
+<div class="container">
+    <!-- Chào mừng (bên trái) -->
+    <div class="welcome-section">
+        <h2>Chào Mừng!</h2>
+        <p>Đăng nhập hoặc đăng ký để tiếp tục khám phá.</p>
+    </div>
+
+    <!-- Form đăng nhập / đăng ký (bên phải) -->
+    <div class="form-wrapper">
+        <div class="form-container">
+            <!-- Form Đăng Nhập -->
+            <div class="form-section">
+                <div class="form-box">
+                    <h2>Đăng Nhập</h2>
+                    <form id="login-form">
+                        <input type="text" placeholder="Email hoặc Tên đăng nhập" required>
+                        <input type="password" placeholder="Mật khẩu" required>
+                        <button type="submit">Đăng Nhập</button>
+                    </form>
+                    <p class="switch-form">Chưa có tài khoản? <span id="switch-to-signup">Đăng ký</span></p>
+                </div>
+            </div>
+
+            <!-- Form Đăng Ký -->
+            <div class="form-section">
+                <div class="form-box">
+                    <h2>Đăng Ký</h2>
+                    <form id="signup-form">
+                        <input type="text" placeholder="Tên đầy đủ" required>
+                        <input type="email" placeholder="Email" required>
+                        <input type="password" placeholder="Mật khẩu" required>
+                        <button type="submit">Đăng Ký</button>
+                    </form>
+                    <p class="switch-form">Đã có tài khoản? <span id="switch-to-login">Đăng nhập</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const formContainer = document.querySelector(".form-container");
+        const switchToSignup = document.getElementById("switch-to-signup");
+        const switchToLogin = document.getElementById("switch-to-login");
+
+        switchToSignup.addEventListener("click", () => {
+            formContainer.classList.add("move-left");
+        });
+
+        switchToLogin.addEventListener("click", () => {
+            formContainer.classList.remove("move-left");
+        });
+    });
+</script>
+
+</body>
+</html>
