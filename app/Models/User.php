@@ -10,15 +10,23 @@ class User extends Authenticatable
     use Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'balance', // Đảm bảo balance có trong $fillable
+        'name',
+        'email',
+        'password',
+        'role',
+        'tokens',
+        'token',
+        'balance',
+        'avatar',
+        'linked_email',
     ];
 
     protected $hidden = [
-        'password', 'remember_token',
+        'password',
+        'remember_token',
     ];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'balance' => 'float',
     ];
 }

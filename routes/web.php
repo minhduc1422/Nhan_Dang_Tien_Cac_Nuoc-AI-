@@ -4,10 +4,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Models\ChatApi;
 
 Route::get('/', function () {
     return view('auth.main');
-});
+})->name('home');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
@@ -15,16 +16,31 @@ Route::get('/register', [AuthController::class, 'showRegister'])->name('register
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Route mới được thêm
 Route::middleware('auth')->group(function () {
+    Route::get('/profile', [AuthController::class, 'showProfile'])->name('user.profile');
+    Route::post('/profile/update-name', [AuthController::class, 'updateName'])->name('user.profile.update-name');
+    Route::post('/profile/update-password', [AuthController::class, 'updatePassword'])->name('user.profile.update-password');
+    Route::post('/profile/update-avatar', [AuthController::class, 'updateAvatar'])->name('user.profile.update-avatar');
     Route::get('/deposit', [AuthController::class, 'showDeposit'])->name('deposit');
     Route::post('/deposit', [AuthController::class, 'requestDeposit']);
-    Route::post('/deposit-confirmation', [AuthController::class, 'depositConfirmation'])->name('deposit.confirmation'); // Route mới
+    Route::post('/deposit-confirmation', [AuthController::class, 'depositConfirmation'])->name('deposit.confirmation');
     Route::get('/admin', [AuthController::class, 'adminDashboard'])->name('admin.dashboard');
     Route::get('/admin/users', [AuthController::class, 'manageUsers'])->name('admin.users');
+    Route::put('/admin/users/{id}/role', [AuthController::class, 'updateUserRole'])->name('admin.users.updateRole');
+    Route::delete('/admin/users/{id}', [AuthController::class, 'deleteUser'])->name('admin.users.delete');
     Route::get('/admin/deposits', [AuthController::class, 'manageDeposits'])->name('admin.deposits');
-    Route::get('/admin/stats', [AuthController::class, 'depositStats'])->name('admin.stats');
     Route::put('/admin/deposits/{id}', [AuthController::class, 'updateDeposit'])->name('admin.deposits.update');
+    Route::get('/admin/stats', [AuthController::class, 'stats'])->name('admin.stats');
+    Route::get('/admin/histori', [AuthController::class, 'histori'])->name('admin.histori');
+    Route::get('/admin/deposit_plans', [AuthController::class, 'manageDepositPlans'])->name('admin.deposit_plans');
+    Route::get('/admin/deposit_plans/create', [AuthController::class, 'createDepositPlan'])->name('admin.deposit_plans.create');
+    Route::post('/admin/deposit_plans', [AuthController::class, 'storeDepositPlan'])->name('admin.deposit_plans.store');
+    Route::get('/admin/deposit_plans/{id}/edit', [AuthController::class, 'editDepositPlan'])->name('admin.deposit_plans.edit');
+    Route::put('/admin/deposit_plans/{id}', [AuthController::class, 'updateDepositPlan'])->name('admin.deposit_plans.update');
+    Route::delete('/admin/deposit_plans/{id}', [AuthController::class, 'destroyDepositPlan'])->name('admin.deposit_plans.destroy');
+    Route::get('/admin/chatbot-config', [AuthController::class, 'chatbotConfig'])->name('admin.chatbot_config');
+    Route::put('/admin/chatbot-config', [AuthController::class, 'updateChatbotConfig'])->name('admin.chatbot_config.update');
+    Route::get('/admin/chatbot-config/get-key', [AuthController::class, 'getApiKey'])->name('admin.chatbot_config.get_key');
 });
 
 Route::post('/detect-money', [AuthController::class, 'detectMoney']);
@@ -36,17 +52,28 @@ Route::post('/chat', function (Request $request) {
     }
 
     try {
-        $response = Http::post('http://localhost:60074/chat', [
+        $config = ChatApi::latest()->first();
+        if (!$config) {
+            return response()->json(['response' => 'Chưa cấu hình chatbot!'], 500);
+        }
+
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json'
+        ])->post('http://localhost:55015/chat', [
             'question' => $question
         ]);
 
         if ($response->successful()) {
-            $data = $response->json();
-            return response()->json(['response' => $data['response']]);
+            return response()->json($response->json());
         } else {
-            return response()->json(['response' => 'Lỗi từ chatbot FastAPI: ' . $response->body()], 500);
+            $error = json_decode($response->body(), true);
+            $status = $response->status();
+            $detail = $error['detail'] ?? 'Lỗi không xác định từ FastAPI';
+            return response()->json(['response' => $detail], $status);
         }
     } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Lỗi khi xử lý chat: ' . $e->getMessage());
         return response()->json(['response' => 'Lỗi khi kết nối với chatbot: ' . $e->getMessage()], 500);
     }
-});
+})->name('chat');

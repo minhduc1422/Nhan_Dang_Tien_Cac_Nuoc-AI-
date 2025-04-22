@@ -27,6 +27,13 @@
             margin: 20px auto; /* Căn giữa và thêm khoảng cách phía trên */
             display: block; /* Đảm bảo nút là block element */
         }
+        /* Hiệu ứng phóng to cho tất cả nút */
+        button, .auth-btn, .logout-btn {
+            transition: transform 0.3s ease; /* Hiệu ứng mượt mà trong 0.3 giây */
+        }
+        button:hover, .auth-btn:hover, .logout-btn:hover {
+            transform: scale(1.1); /* Phóng to 10% khi hover */
+        }
     </style>
 </head>
 <body>
@@ -57,18 +64,14 @@
         <h2>Nạp Tiền</h2>
         <p>Vui lòng chọn gói nạp tiền, quét mã QR để thanh toán, và xác nhận nạp tiền.</p>
         <div class="pricing-table">
-            <div class="pricing-option" onclick="selectPackage(50000, 20)">
-                <h3>50.000 VND</h3>
-                <p>20 lần sử dụng</p>
-            </div>
-            <div class="pricing-option" onclick="selectPackage(100000, 100)">
-                <h3>100.000 VND</h3>
-                <p>100 lần sử dụng</p>
-            </div>
-            <div class="pricing-option" onclick="selectPackage(500000, 650)">
-                <h3>500.000 VND</h3>
-                <p>650 lần sử dụng</p>
-            </div>
+            @forelse ($plans as $plan)
+                <div class="pricing-option" onclick="selectPackage('{{ $plan->id }}')">
+                    <h3>{{ number_format($plan->amount, 0, ',', '.') }} VND</h3>
+                    <p>{{ $plan->tokens }} lần sử dụng</p>
+                </div>
+            @empty
+                <p>Không có gói nạp tiền nào khả dụng.</p>
+            @endforelse
         </div>
         <div class="qr-code">
             <img src="/static/image/hinhnen_6.png" alt="Mã QR Thanh Toán">
@@ -79,8 +82,7 @@
                 @csrf
                 <label for="proof-image">Tải lên ảnh xác nhận nạp tiền:</label>
                 <input type="file" id="proof-image" name="proof_image" accept="image/*" required>
-                <input type="hidden" id="deposit-amount" name="amount">
-                <input type="hidden" id="deposit-tokens" name="tokens">
+                <input type="hidden" id="plan-id" name="plan_id">
                 <button type="submit" class="auth-btn">Xác nhận nạp tiền</button>
             </form>
             <p id="confirmation-status" style="margin-top: 10px;"></p>
@@ -90,7 +92,7 @@
     <script>
         let selectedPackage = null;
 
-        function selectPackage(amount, tokens) {
+        function selectPackage(planId) {
             // Xóa lớp selected khỏi tất cả các gói
             document.querySelectorAll('.pricing-option').forEach(option => {
                 option.classList.remove('selected');
@@ -100,22 +102,20 @@
             const selectedOption = event.currentTarget;
             selectedOption.classList.add('selected');
 
-            // Cập nhật giá trị amount và tokens
-            document.getElementById('deposit-amount').value = amount;
-            document.getElementById('deposit-tokens').value = tokens;
+            // Cập nhật giá trị plan_id
+            document.getElementById('plan-id').value = planId;
 
-            selectedPackage = { amount, tokens };
+            selectedPackage = { planId };
         }
 
         document.getElementById('deposit-confirmation-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             const statusP = document.getElementById('confirmation-status');
-            const amount = document.getElementById('deposit-amount').value;
-            const tokens = document.getElementById('deposit-tokens').value;
+            const planId = document.getElementById('plan-id').value;
 
             // Kiểm tra xem người dùng đã chọn gói nạp tiền chưa
-            if (!amount || !tokens) {
+            if (!planId) {
                 statusP.style.color = 'red';
                 statusP.textContent = 'Lỗi: Vui lòng chọn gói nạp tiền trước khi xác nhận!';
                 return;
@@ -136,7 +136,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': csrfToken
                     },
-                    body: JSON.stringify({ amount, tokens })
+                    body: JSON.stringify({ plan_id: planId })
                 });
 
                 const depositData = await depositResponse.json();

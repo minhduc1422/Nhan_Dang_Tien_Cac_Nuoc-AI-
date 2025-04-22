@@ -47,13 +47,13 @@
             max-height: 300px;
             overflow-y: auto;
             padding: 10px;
-            display: none; /* Ẩn mặc định */
+            display: none;
         }
         #chat-input-container {
             display: flex;
             padding: 10px;
             border-top: 1px solid #ddd;
-            display: none; /* Ẩn mặc định */
+            display: none;
         }
         #chat-input {
             flex: 1;
@@ -72,7 +72,7 @@
         }
         #chat-container.active #chat-messages,
         #chat-container.active #chat-input-container {
-            display: block; /* Hiển thị khi chatbox mở rộng */
+            display: block;
         }
         .message {
             margin: 5px 0;
@@ -90,10 +90,133 @@
             margin-right: 20%;
             margin-left: 5px;
         }
+
+        /* CSS cho hero section */
+        .hero {
+            padding: 50px;
+            background-color: #00c4cc;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            background: url('https://www.transparenttextures.com/patterns/arabesque.png'), #00c4cc;
+        }
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .content {
+            flex: 1;
+            max-width: 50%;
+            text-align: left;
+            padding-right: 20px;
+        }
+        .hero-image {
+            flex: 1;
+            max-width: 50%;
+            text-align: right;
+        }
+        .hero-image img {
+            max-width: 100%;
+            height: auto;
+        }
+        #upload-container {
+            margin: 20px 0;
+        }
+        #image-input {
+            display: block;
+            margin: 10px 0;
+        }
+        #upload-button {
+            padding: 10px 20px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #upload-button:hover {
+            background: #34495e;
+        }
+        #result-container {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #result-image {
+            max-width: 100%;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .info-bar {
+            background: #f1f1f1;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            width: 100%;
+            text-align: center;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+        #result-error {
+            margin-top: 10px;
+            color: red;
+            width: 100%;
+            text-align: center;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+
+        img {
+            transition: transform 0.3s ease;
+        }
+        img:hover {
+            transform: scale(1.1);
+        }
+
+        .discover-item img {
+            max-width: 100%;
+            height: auto;
+            transition: transform 0.3s ease;
+        }
+        .discover-item img:hover {
+            transform: scale(1.1);
+        }
+
+        button, .deposit-btn, .logout-btn {
+            transition: transform 0.3s ease;
+        }
+        button:hover, .deposit-btn:hover, .logout-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .user-info-sidebar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 10px;
+            cursor: pointer;
+            border: 2px solid #ff8c00;
+        }
+        .user-info-sidebar span {
+            color: #fff;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
-    <!-- Sidebar - Mục Lục -->
     <nav class="sidebar">
         <h3>Mục Lục</h3>
         <ul>
@@ -104,7 +227,9 @@
                 <li><a href="{{ route('login') }}">Đăng Nhập/Đăng Ký</a></li>
             @else
                 <li class="user-info-sidebar">
-                    <span>Xin chào, {{ Auth::user()->name }} (Tokens: {{ Auth::user()->tokens }})</span>
+                    <img src="{{ Auth::user()->avatar ? asset('storage/' . Auth::user()->avatar) : 'https://via.placeholder.com/40' }}" alt="Avatar" class="user-avatar" onclick="goToProfile()">
+                    <span>Xin chào, {{ Auth::user()->name }}<br> 
+                    (lần sử dụng: {{ Auth::user()->tokens }})</span>
                 </li>
                 @if(Auth::user()->role === 'admin')
                     <li><a href="{{ route('admin.dashboard') }}">Admin Panel</a></li>
@@ -121,12 +246,10 @@
         </ul>
     </nav>
 
-    <!-- Header -->
     <header>
         <div class="logo">Khám Phá Tiền Tệ</div>
     </header>
 
-    <!-- Hero Section -->
     <section id="hero" class="hero">
         <div class="hero-content">
             <h1>Khám Phá Tiền Tệ Đông Nam Á</h1>
@@ -139,8 +262,8 @@
                             <button id="upload-button" onclick="uploadImage()">Tải Lên và Nhận Diện</button>
                         </div>
                         <div id="loading" class="loader"></div>
-                        <div id="result-container" style="display: none; text-align: center;">
-                            <img id="result-image" alt="Ảnh nhận diện" style="max-width: 300px; display: block; margin: auto;">
+                        <div id="result-container" style="display: none;">
+                            <img id="result-image" alt="Ảnh nhận diện">
                             <div class="info-bar" id="detection-info"></div>
                             <div class="info-bar" id="money-details"></div>
                             <p id="result-error" style="color: red;"></p>
@@ -154,17 +277,16 @@
         </div>
     </section>
 
-    <!-- Discover Section -->
     <section id="discover" class="discover">
         <div class="discover-header">
             <h2>Khám Phá Tiền Tệ Đông Nam Á</h2>
-            <p>Đông Nam Á là khu vực có nền văn hóa đa dạng và phong phú...</p>
+            <p>Đông Nam Á là khu vực có nền văn hóa đa dạng và phong phú, nơi giao thoa giữa những truyền thống lâu đời và sự hiện đại hóa không ngừng. Vùng đất này là cái nôi của những điệu múa duyên dáng như Apsara của Campuchia, những ngôi chùa vàng rực rỡ ở Thái Lan, hay những lễ hội đèn lồng lung linh ở Việt Nam. Ẩm thực Đông Nam Á cũng là một bản giao hưởng của hương vị, từ vị cay nồng của Tom Yum Thái Lan, sự tinh tế của Phở Việt Nam, đến hương thơm quyến rũ của Nasi Goreng Indonesia. Mỗi quốc gia trong khu vực mang một màu sắc riêng, đan xen giữa tín ngưỡng Phật giáo, Hồi giáo, Thiên Chúa giáo và các phong tục bản địa độc đáo. Chính sự đa dạng này đã tạo nên một Đông Nam Á đầy sức hút, nơi mà mỗi bước chân của du khách đều là một hành trình khám phá những câu chuyện văn hóa kỳ diệu.</p>
         </div>
         <div class="discover-grid">
             <div class="discover-item">
                 <div class="discover-text">
                     <h3>Tìm Hiểu Lịch Sử Tiền Tệ</h3>
-                    <p>Lịch sử tiền tệ Đông Nam Á là một hành trình dài đầy thú vị...</p>
+                    <p>Lịch sử tiền tệ Đông Nam Á rất hấp dẫn, từ vỏ sò, hạt cau thời xưa đến đồng xu kim loại khắc hình vua chúa. Qua các tuyến thương mại, tiền tệ nơi đây mang dấu ấn Trung Quốc, Ấn Độ và phương Tây. Đến nay, mỗi đồng tiền đều kể một câu chuyện về quá khứ đầy màu sắc.</p>
                 </div>
                 <img src="/static/image/hinhnen_2.png" alt="Hình Ảnh Văn Hóa">
             </div>
@@ -172,27 +294,25 @@
                 <img src="/static/image/hinhnen_3.png" alt="Thiết Kế Tiền Tệ">
                 <div class="discover-text">
                     <h3>Khám Phá Thiết Kế Tiền Tệ</h3>
-                    <p>Mỗi tờ tiền và đồng xu trong khu vực Đông Nam Á đều là một tác phẩm nghệ thuật...</p>
+                    <p>Mỗi tờ tiền và đồng xu ở Đông Nam Á như một bức tranh nhỏ. Có tờ vẽ chùa vàng Thái Lan, có đồng khắc Angkor Wat của Campuchia, hay hình ảnh ruộng lúa Việt Nam. Chúng không chỉ để tiêu mà còn thể hiện văn hóa và lịch sử độc đáo.</p>
                 </div>
             </div>
             <div class="discover-item">
                 <div class="discover-text">
                     <h3>Khám Phá Thêm Tiền Tệ</h3>
-                    <p>Đông Nam Á là nơi hội tụ của nhiều nền văn hóa đa dạng...</p>
+                    <p>Đông Nam Á là vùng đất đa văn hóa, nơi chùa Phật, nhà thờ và đền Hồi giáo cùng tồn tại. Từ múa Apsara Campuchia, lễ hội đèn lồng Việt Nam đến ẩm thực cay nồng của Thái Lan, mỗi nước mang một nét riêng. Sự phong phú này làm nên sức hút đặc biệt cho khu vực.</p>
                 </div>
                 <img src="/static/image/hinhnen_4.png" alt="Thêm Tiền Tệ">
             </div>
         </div>
     </section>
 
-    <!-- Call to Action -->
     <section id="cta" class="cta">
-        <h3>Bắt Đầu Hành Trình Tiền Tệ Của Bạn Ngay Hôm Nay!</h3>
+        <h3>Bắt Đầu Hành Trình khám phá tiền Của Bạn Ngay Hôm Nay!</h3>
         <p>Hãy cùng chúng tôi khám phá thế giới tiền tệ Đông Nam Á...</p>
         <button onclick="document.getElementById('image-input')?.click()">Khám Phá Tiền Tệ</button>
     </section>
 
-    <!-- Footer -->
     <footer id="footer">
         <div class="footer-nav">
             <a href="#">Trang Chủ</a>
@@ -209,7 +329,6 @@
         <p>© Mọi quyền được bảo lưu.</p>
     </footer>
 
-    <!-- Chatbox -->
     <div id="chat-container">
         <div id="chat-header" onclick="toggleChatbox()">Trò Chuyện</div>
         <div id="chat-messages"></div>

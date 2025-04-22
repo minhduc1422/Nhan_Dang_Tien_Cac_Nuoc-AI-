@@ -20,7 +20,10 @@
                         <input type="password" name="password" placeholder="Mật khẩu" required>
                     </div>
                     <button type="submit" class="auth-btn">Đăng Nhập</button>
-                    <p class="switch-form">Chưa có tài khoản? <a href="#" class="switch-link" data-form="signup">Đăng ký</a></p>
+                    <div class="switch-form">
+                        <span>Chưa có tài khoản? <a href="#" class="switch-link" data-form="signup">Đăng ký</a></span>
+                        <span class="forgot-password"> | <a href="#" class="forgot-link">Quên mật khẩu?</a></span>
+                    </div>
                 </form>
 
                 <!-- Signup Form -->
@@ -64,7 +67,7 @@
 .comtrainer {
     display: flex;
     width: 900px;
-    height: 600px; /* Tăng nhẹ chiều cao để cân đối với form đăng ký */
+    height: 600px;
     background: #1e272e;
     border-radius: 20px;
     overflow: hidden;
@@ -89,7 +92,7 @@
 }
 
 .welcome-content h2 {
-    font-size: 36px; /* Tăng nhẹ kích thước chữ để cân đối */
+    font-size: 36px;
     margin-bottom: 20px;
     font-weight: 700;
 }
@@ -97,7 +100,7 @@
 .welcome-content p {
     font-size: 16px;
     line-height: 1.6;
-    max-width: 85%; /* Tăng nhẹ chiều rộng tối đa */
+    max-width: 85%;
 }
 
 /* Form Section */
@@ -119,25 +122,25 @@
 
 .auth-form {
     width: 100%;
-    padding: 20px 0; /* Thêm padding trên dưới để cân đối */
+    padding: 20px 0;
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
 .auth-form h3 {
     color: #1e272e;
     text-align: center;
-    margin-bottom: 25px; /* Giảm nhẹ để đồng đều */
+    margin-bottom: 25px;
     font-size: 24px;
     font-weight: 600;
 }
 
 .form-group {
-    margin-bottom: 18px; /* Đồng đều khoảng cách giữa các trường */
+    margin-bottom: 18px;
 }
 
 .form-group input {
     width: 100%;
-    padding: 12px; /* Giảm nhẹ padding để cân đối */
+    padding: 12px;
     border: 1px solid #ddd;
     border-radius: 8px;
     font-size: 15px;
@@ -152,7 +155,7 @@
 
 .auth-btn {
     width: 100%;
-    padding: 12px; /* Đồng đều với input */
+    padding: 12px;
     background: #00d8d6;
     color: #fff;
     border: none;
@@ -169,13 +172,16 @@
 
 .switch-form {
     text-align: center;
-    margin-top: 18px; /* Đồng đều với form-group */
+    margin-top: 18px;
     color: #7f8c8d;
     font-size: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .below-btn {
-    margin-top: 18px; /* Đồng đều với switch-form */
+    margin-top: 18px;
 }
 
 .switch-link {
@@ -185,6 +191,20 @@
 }
 
 .switch-link:hover {
+    text-decoration: underline;
+}
+
+.forgot-password {
+    color: #7f8c8d;
+}
+
+.forgot-link {
+    color: #00d8d6;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.forgot-link:hover {
     text-decoration: underline;
 }
 

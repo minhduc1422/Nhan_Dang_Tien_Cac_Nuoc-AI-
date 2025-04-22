@@ -1,76 +1,55 @@
 @extends('layouts.admin')
 
-@section('title', 'Quản lý nạp tiền')
+@section('title', 'Lịch sử nhận diện tờ tiền')
 
 @section('content')
-    <h2>Quản lý nạp tiền</h2>
+    <!-- Tiêu đề -->
+    <h2>Lịch sử nhận diện tờ tiền</h2>
 
-    @if (session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
-
+    <!-- Thông báo -->
     @if (session('error'))
         <div class="alert alert-error">
             {{ session('error') }}
         </div>
     @endif
 
+    <!-- Bảng lịch sử -->
     <div class="table-container">
-        @if ($deposits->isNotEmpty())
+        @if (isset($detections) && $detections->isNotEmpty())
             <table class="deposit-table">
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>User ID</th>
-                        <th>Số tiền</th>
-                        <th>Tokens</th>
-                        <th>Ảnh xác nhận</th>
-                        <th>Trạng thái</th>
+                        <th>Người dùng</th>
+                        <th>Kết quả nhận diện</th>
+                        <th>Hình ảnh</th>
                         <th>Thời gian</th>
-                        <th>Hành động</th>
+                        <th>Trạng thái</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach ($deposits as $deposit)
+                    @foreach ($detections as $detection)
                         <tr>
-                            <td>{{ $deposit->id }}</td>
-                            <td>{{ $deposit->user_id }}</td>
-                            <td>{{ number_format($deposit->amount, 0, ',', '.') }} VND</td>
-                            <td>{{ $deposit->tokens }}</td>
+                            <td>{{ $detection->id }}</td>
+                            <td>{{ $detection->user_name ?? 'N/A' }}</td>
+                            <td>{{ $detection->result ?? 'N/A' }}</td>
                             <td>
-                                @if ($deposit->proof_image)
-                                    <a href="{{ asset('storage/' . $deposit->proof_image) }}" class="image-link">
-                                        <img src="{{ asset('storage/' . $deposit->proof_image) }}" alt="Ảnh xác nhận" class="thumbnail">
+                                @if ($detection->image)
+                                    <a href="{{ asset('storage/' . $detection->image) }}" class="image-link">
+                                        <img src="{{ asset('storage/' . $detection->image) }}" alt="Hình ảnh nhận diện" class="thumbnail">
                                     </a>
                                 @else
-                                    Chưa có
+                                    Không có
                                 @endif
                             </td>
-                            <td>{{ $deposit->status }}</td>
-                            <td>{{ \Carbon\Carbon::parse($deposit->created_at)->format('d/m/Y H:i:s') }}</td>
-                            <td>
-                                @if ($deposit->status == 'pending')
-                                    <form action="{{ route('admin.deposits.update', $deposit->id) }}" method="POST" style="display:inline;">
-                                        @csrf
-                                        @method('PUT')
-                                        <select name="status" onchange="this.form.submit()">
-                                            <option value="pending" selected>Chờ duyệt</option>
-                                            <option value="completed">Duyệt</option>
-                                            <option value="failed">Hủy</option>
-                                        </select>
-                                    </form>
-                                @else
-                                    {{ $deposit->status == 'completed' ? 'Đã duyệt' : 'Đã hủy' }}
-                                @endif
-                            </td>
+                            <td>{{ \Carbon\Carbon::parse($detection->created_at)->format('d/m/Y H:i:s') }}</td>
+                            <td>{{ $detection->status ?? 'N/A' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
-            <p>Chưa có yêu cầu nạp tiền nào.</p>
+            <p>Chưa có lịch sử nhận diện tờ tiền.</p>
         @endif
     </div>
 
@@ -120,19 +99,6 @@
 
     .deposit-table td {
         color: #333;
-    }
-
-    .deposit-table select {
-        padding: 5px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-        background-color: #fff;
-        cursor: pointer;
-    }
-
-    .deposit-table select:focus {
-        outline: none;
-        border-color: #1e272e;
     }
 
     .thumbnail {
@@ -204,12 +170,6 @@
         max-width: 1200px;
         border-radius: 5px;
         text-align: center;
-    }
-
-    .alert-success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
     }
 
     .alert-error {

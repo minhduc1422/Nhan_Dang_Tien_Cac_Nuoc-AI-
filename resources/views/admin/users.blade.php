@@ -25,8 +25,22 @@
                     <td>{{ $user->role }}</td>
                     <td>{{ $user->tokens }}</td>
                     <td>
-                        <a href="#" class="action-btn edit-btn">Sửa</a> | 
-                        <a href="#" class="action-btn delete-btn">Xóa</a>
+                        <!-- Form thay đổi vai trò -->
+                        <form action="{{ route('admin.users.updateRole', $user->id) }}" method="POST" style="display:inline;">
+                            @csrf
+                            @method('PUT')
+                            <select name="role" onchange="this.form.submit()" class="role-select">
+                                <option value="user" {{ $user->role === 'user' ? 'selected' : '' }}>User</option>
+                                <option value="admin" {{ $user->role === 'admin' ? 'selected' : '' }}>Admin</option>
+                            </select>
+                        </form>
+                        | 
+                        <!-- Form xóa tài khoản -->
+                        <form action="{{ route('admin.users.delete', $user->id) }}" method="POST" style="display:inline;">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="action-btn delete-btn" onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản {{ $user->name }}?')">Xóa</button>
+                        </form>
                     </td>
                 </tr>
             @endforeach
@@ -34,3 +48,36 @@
     </table>
 </div>
 @endsection
+
+<style>
+.role-select {
+    padding: 5px;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.action-btn {
+    padding: 5px 10px;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+.edit-btn {
+    background: #00d8d6;
+    color: #fff;
+}
+
+.delete-btn {
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+}
+</style>

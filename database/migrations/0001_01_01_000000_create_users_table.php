@@ -19,6 +19,12 @@ return new class extends Migration
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->integer('tokens')->default(0); // Thêm cột tokens
+            $table->string('role')->default('user'); // Thêm cột role
+            $table->decimal('balance', 15, 2)->nullable()->default(0.00); // Thêm cột balance
+            $table->integer('token')->default(0); // Thêm cột token
+            $table->string('avatar')->nullable(); // Thêm cột avatar
+            $table->string('linked_email')->nullable(); // Thêm cột linked_email
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
