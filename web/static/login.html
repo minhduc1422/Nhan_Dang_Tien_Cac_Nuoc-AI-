@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Nhập & Đăng Ký</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #ecf0f1; }
+        .container { display: flex; width: 800px; height: 500px; background: #1e272e; border-radius: 15px; overflow: hidden; border: 2px solid #485460; position: relative; }
+        .welcome-section { width: 50%; background: linear-gradient(135deg, #00d8d6, #4ecdc4); display: flex; flex-direction: column; justify-content: center; align-items: center; color: #1e272e; text-align: center; padding: 20px; }
+        .welcome-section h2 { font-size: 24px; margin-bottom: 10px; font-weight: bold; }
+        .welcome-section p { font-size: 16px; }
+        .form-wrapper { width: 50%; overflow: hidden; position: relative; }
+        .form-container { display: flex; width: 200%; height: 100%; transition: transform 0.5s ease-in-out; }
+        .form-section { width: 50%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: #ffffff; }
+        .form-box { width: 80%; text-align: center; }
+        .form-box h2 { margin-bottom: 20px; color: #333; }
+        .form-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        .form-box button { width: 100%; padding: 10px; margin-top: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .switch-form { margin-top: 10px; color: #007bff; cursor: pointer; font-weight: bold; }
+        .move-left { transform: translateX(-50%); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="welcome-section">
+        <h2>Chào Mừng!</h2>
+        <p>Đăng nhập hoặc đăng ký để tiếp tục khám phá.</p>
+    </div>
+    <div class="form-wrapper">
+        <div class="form-container">
+            <div class="form-section">
+                <div class="form-box">
+                    <h2>Đăng Nhập</h2>
+                    <form id="login-form">
+                        <input type="text" name="email" placeholder="Email" required>
+                        <input type="password" name="mat_khau" placeholder="Mật khẩu" required>
+                        <button type="submit">Đăng Nhập</button>
+                    </form>
+                    <p class="switch-form">Chưa có tài khoản? <span id="switch-to-signup">Đăng ký</span></p>
+                    <p id="login-message" style="color: red;"></p>
+                </div>
+            </div>
+            <div class="form-section">
+                <div class="form-box">
+                    <h2>Đăng Ký</h2>
+                    <form id="signup-form">
+                        <input type="text" name="ten_kh" placeholder="Tên khách hàng" required>
+                        <input type="email" name="email" placeholder="Email" required>
+                        <input type="password" name="mat_khau" placeholder="Mật khẩu" required>
+                        <button type="submit">Đăng Ký</button>
+                    </form>
+                    <p class="switch-form">Đã có tài khoản? <span id="switch-to-login">Đăng nhập</span></p>
+                    <p id="signup-message" style="color: red;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const formContainer = document.querySelector(".form-container");
+        const switchToSignup = document.getElementById("switch-to-signup");
+        const switchToLogin = document.getElementById("switch-to-login");
+        const loginForm = document.getElementById("login-form");
+        const signupForm = document.getElementById("signup-form");
+        const loginMessage = document.getElementById("login-message");
+        const signupMessage = document.getElementById("signup-message");
+
+        switchToSignup.addEventListener("click", () => formContainer.classList.add("move-left"));
+        switchToLogin.addEventListener("click", () => formContainer.classList.remove("move-left"));
+
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(loginForm);
+            try {
+                const response = await fetch("http://127.0.0.1:8000/login", {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
+                console.log("Phản hồi từ /login:", result); // Debug
+                if (response.ok) {
+                    loginMessage.style.color = "green";
+                    loginMessage.textContent = result.message;
+                    const userData = {
+                        ten_kh: result.user.ten_kh,
+                        email: result.user.email
+                    };
+                    localStorage.setItem("user", JSON.stringify(userData));
+                    console.log("Đã lưu vào localStorage:", userData); // Debug
+                    setTimeout(() => window.location.href = "http://127.0.0.1:8000/", 1000);
+                } else {
+                    loginMessage.textContent = result.detail;
+                }
+            } catch (error) {
+                loginMessage.textContent = "Lỗi kết nối server!";
+                console.error("Lỗi:", error); // Debug
+            }
+        });
+
+        signupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(signupForm);
+            try {
+                const response = await fetch("http://127.0.0.1:8000/signup", {
+                    method: "POST",
+                    body: formData
+                });
+                const result = await response.json();
+                console.log("Phản hồi từ /signup:", result); // Debug
+                if (response.ok) {
+                    signupMessage.style.color = "green";
+                    signupMessage.textContent = result.message;
+                    setTimeout(() => formContainer.classList.remove("move-left"), 1000);
+                } else {
+                    signupMessage.textContent = result.detail;
+                }
+            } catch (error) {
+                signupMessage.textContent = "Lỗi kết nối server!";
+                console.error("Lỗi:", error); // Debug
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
