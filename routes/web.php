@@ -15,6 +15,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google');
+Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [AuthController::class, 'showProfile'])->name('user.profile');
@@ -41,39 +43,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/chatbot-config', [AuthController::class, 'chatbotConfig'])->name('admin.chatbot_config');
     Route::put('/admin/chatbot-config', [AuthController::class, 'updateChatbotConfig'])->name('admin.chatbot_config.update');
     Route::get('/admin/chatbot-config/get-key', [AuthController::class, 'getApiKey'])->name('admin.chatbot_config.get_key');
+    Route::get('/admin/change-model', [AuthController::class, 'showDetectionModelConfig'])->name('admin.change_model');
+    Route::get('/api/current-detection-model', [AuthController::class, 'getCurrentDetectionModel'])->name('api.current_detection_model');
+    Route::get('/admin/metadata-config', [AuthController::class, 'metadataConfig'])->name('admin.metadata_config');
+    Route::put('/admin/metadata-config', [AuthController::class, 'updateMetadataConfig'])->name('admin.metadata_config.update');
+    Route::get('/admin/apks', [AuthController::class, 'manageApks'])->name('admin.apks');
+    Route::get('/admin/apks/create', [AuthController::class, 'createApk'])->name('admin.apks.create');
+    Route::post('/admin/apks', [AuthController::class, 'storeApk'])->name('admin.apks.store');
+    Route::get('/admin/apks/{id}/edit', [AuthController::class, 'editApk'])->name('admin.apks.edit');
+    Route::put('/admin/apks/{id}', [AuthController::class, 'updateApk'])->name('admin.apks.update');
+    Route::delete('/admin/apks/{id}', [AuthController::class, 'destroyApk'])->name('admin.apks.destroy');
 });
 
 Route::post('/detect-money', [AuthController::class, 'detectMoney']);
-
-Route::post('/chat', function (Request $request) {
-    $question = $request->input('question');
-    if (!$question) {
-        return response()->json(['response' => 'Vui lòng cung cấp câu hỏi!'], 400);
-    }
-
-    try {
-        $config = ChatApi::latest()->first();
-        if (!$config) {
-            return response()->json(['response' => 'Chưa cấu hình chatbot!'], 500);
-        }
-
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
-        ])->post('http://localhost:55015/chat', [
-            'question' => $question
-        ]);
-
-        if ($response->successful()) {
-            return response()->json($response->json());
-        } else {
-            $error = json_decode($response->body(), true);
-            $status = $response->status();
-            $detail = $error['detail'] ?? 'Lỗi không xác định từ FastAPI';
-            return response()->json(['response' => $detail], $status);
-        }
-    } catch (\Exception $e) {
-        \Illuminate\Support\Facades\Log::error('Lỗi khi xử lý chat: ' . $e->getMessage());
-        return response()->json(['response' => 'Lỗi khi kết nối với chatbot: ' . $e->getMessage()], 500);
-    }
-})->name('chat');
+Route::post('/chat', [AuthController::class, 'chat'])->name('chat');

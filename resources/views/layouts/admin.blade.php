@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin Dashboard')</title>
     <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             margin: 0;
@@ -60,7 +62,7 @@
         }
         .sidebar.collapsed a {
             padding-left: 10px;
-            font-size: 0em; /* Ẩn text khi thu nhỏ */
+            font-size: 0; /* Ẩn text khi thu nhỏ */
         }
         .sidebar a:hover {
             background: #3498db;
@@ -69,6 +71,27 @@
         .sidebar.collapsed a:hover {
             transform: translateX(0); /* Không áp dụng hiệu ứng dịch chuyển khi thu nhỏ */
         }
+        /* Thêm biểu tượng cho các mục trong sidebar */
+        .sidebar ul li a::before {
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            color: #ecf0f1;
+            margin-right: 10px;
+            opacity: 1;
+            width: 20px;
+            text-align: center;
+            display: inline-block;
+        }
+        .sidebar ul li:nth-child(1) a::before { content: "\f0e4"; } /* Dashboard */
+        .sidebar ul li:nth-child(2) a::before { content: "\f007"; } /* Quản lý tài khoản */
+        .sidebar ul li:nth-child(3) a::before { content: "\f3d1"; } /* Quản lý nạp tiền */
+        .sidebar ul li:nth-child(4) a::before { content: "\f080"; } /* Thống kê nạp tiền */
+        .sidebar ul li:nth-child(5) a::before { content: "\f1da"; } /* Lịch sử nhận diện */
+        .sidebar ul li:nth-child(6) a::before { content: "\f4c4"; } /* Điều chỉnh nạp tiền */
+        .sidebar ul li:nth-child(7) a::before { content: "\f27a"; } /* Cấu hình Chatbot */
+        .sidebar ul li:nth-child(8) a::before { content: "\f1b2"; } /* Cấu hình mô hình nhận diện */
+        .sidebar ul li:nth-child(9) a::before { content: "\f085"; } /* Cấu hình Metadata */
+        .sidebar ul li:nth-child(10) a::before { content: "\f019"; } /* Quản lý APK */
 
         /* Header */
         header {
@@ -170,6 +193,9 @@
             <li><a href="{{ route('admin.histori') }}">Lịch sử nhận diện</a></li>
             <li><a href="{{ route('admin.deposit_plans') }}">Điều chỉnh nạp tiền</a></li>
             <li><a href="{{ route('admin.chatbot_config') }}">Cấu hình Chatbot</a></li>
+            <li><a href="{{ route('admin.change_model') }}">Cấu hình mô hình nhận diện</a></li>
+            <li><a href="{{ route('admin.metadata_config') }}">Cấu hình Metadata</a></li>
+            <li><a href="{{ route('admin.apks') }}">Quản lý APK</a></li>
         </ul>
     </div>
 
@@ -188,6 +214,7 @@
         @yield('content')
     </section>
 
+    @yield('scripts')
     <script>
         const sidebar = document.querySelector('.sidebar');
         const header = document.querySelector('header');

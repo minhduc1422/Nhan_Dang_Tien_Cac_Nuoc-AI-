@@ -4,20 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Deposit extends Model
+class DepositPlan extends Model
 {
+    protected $table = 'deposit_plans';
+
     protected $fillable = [
-        'user_id',
         'amount',
         'tokens',
-        'status',
-        'proof_image',
-        'created_at',
-        'updated_at',
+        'description',
+        'is_active',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'tokens' => 'integer',
+        'is_active' => 'boolean',
+    ];
 }

@@ -21,3 +21,7 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+storage/app/public/deposit_proofs
+storage/app/public/avatars
+storage/app/public/deposit
+storage/app/public/money_detections

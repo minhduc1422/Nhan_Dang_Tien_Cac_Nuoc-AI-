@@ -1,21 +1,90 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\ChatApi;
+use App\Models\DepositPlan;
+use App\Models\Deposit;
+use App\Models\MoneyDetection;
+use App\Models\Metadata;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use App\Models\Apk;
 
 class AuthController extends Controller
 {
-    // Các phương thức hiện có (giữ nguyên từ mã bạn cung cấp)
+
+    // Các phương thức khác giữ nguyên
+    public function signup(Request $request)
+    {
+        return $this->apiRegister($request);
+    }
+
+    public function getDepositPlans()
+    {
+        $plans = DepositPlan::where('is_active', 1)->get();
+        return response()->json([
+            'success' => true,
+            'data' => $plans
+        ], 200);
+    }
+
+    public function depositConfirmation(Request $request)
+    {
+        try {
+            $request->validate([
+                'plan_id' => 'required|integer|exists:deposit_plans,id',
+                'proof_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
+            ]);
+
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Chưa đăng nhập',
+                ], 401);
+            }
+
+            $plan = DepositPlan::findOrFail($request->plan_id);
+
+            $imagePath = null;
+            if ($request->hasFile('proof_image')) {
+                $imagePath = $request->file('proof_image')->store('deposit_proofs', 'public');
+            }
+
+            $deposit = Deposit::create([
+                'user_id' => $user->id,
+                'amount' => $plan->amount,
+                'tokens' => $plan->tokens,
+                'status' => 'pending',
+                'proof_image' => $imagePath,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Xác nhận nạp tiền thành công! Đợi admin duyệt.',
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->validator->errors()->first(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi xử lý xác nhận nạp tiền: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi server: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function showLogin()
     {
         return view('auth.login');
@@ -30,10 +99,12 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
-            return redirect()->intended('/');
+            return redirect()->intended('/')->with('success', 'Đăng nhập thành công!');
         }
 
-        return back()->withErrors(['email' => 'Thông tin đăng nhập không đúng.']);
+        return back()->withErrors([
+            'email' => 'Thông tin đăng nhập không chính xác.',
+        ]);
     }
 
     public function showRegister()
@@ -43,31 +114,37 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'avatar' => 'nullable|image|max:2048',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:8|confirmed',
+                'avatar' => 'nullable|image|max:2048',
+            ]);
 
-        $avatarPath = null;
-        if ($request->hasFile('avatar')) {
-            $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            $avatarPath = null;
+            if ($request->hasFile('avatar')) {
+                $avatarPath = $request->file('avatar')->store('avatars', 'public');
+            }
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'avatar' => $avatarPath,
+                'role' => 'user',
+                'tokens' => 5,
+                'balance' => 0.00,
+            ]);
+
+            Auth::login($user);
+            return redirect('/')->with('success', 'Đăng ký thành công! Bạn được tặng 5 lần sử dụng miễn phí.');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi đăng ký: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Lỗi hệ thống: ' . $e->getMessage()])->withInput();
         }
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'avatar' => $avatarPath,
-            'role' => 'user',
-            'tokens' => 5,
-            'token' => 5,
-            'balance' => 0.00,
-        ]);
-
-        Auth::login($user);
-        return redirect('/');
     }
 
     public function logout(Request $request)
@@ -75,7 +152,7 @@ class AuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        return redirect('/');
+        return redirect('/')->with('success', 'Đăng xuất thành công!');
     }
 
     public function showProfile()
@@ -118,7 +195,7 @@ class AuthController extends Controller
                 return back()->withErrors(['old_password' => 'Mật khẩu cũ không đúng!']);
             }
 
-            $user->password = bcrypt($request->password);
+            $user->password = Hash::make($request->password);
             $user->save();
 
             return redirect()->route('user.profile')->with('success', 'Đổi mật khẩu thành công!');
@@ -211,7 +288,7 @@ class AuthController extends Controller
 
         $plan = DB::table('deposit_plans')->where('id', $request->plan_id)->first();
 
-        DB::table('deposits')->insert([
+        $deposit = DB::table('deposits')->insertGetId([
             'user_id' => Auth::user()->id,
             'amount' => $plan->amount,
             'tokens' => $plan->tokens,
@@ -223,58 +300,18 @@ class AuthController extends Controller
         return response()->json(['message' => 'Yêu cầu nạp tiền đã được gửi thành công! Vui lòng xác nhận với ảnh.']);
     }
 
-    public function depositConfirmation(Request $request)
-    {
-        try {
-            $request->validate([
-                'proof_image' => 'required|image|max:5120',
-                'plan_id' => 'required|exists:deposit_plans,id',
-            ]);
-
-            $user = Auth::user();
-            $plan = DB::table('deposit_plans')->where('id', $request->plan_id)->first();
-            $image = $request->file('proof_image');
-            $imagePath = $image->store('deposit_proofs', 'public');
-
-            $deposit = DB::table('deposits')
-                ->where('user_id', $user->id)
-                ->where('amount', $plan->amount)
-                ->where('tokens', $plan->tokens)
-                ->where('status', 'pending')
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($deposit) {
-                DB::table('deposits')
-                    ->where('id', $deposit->id)
-                    ->update(['proof_image' => $imagePath, 'updated_at' => now()]);
-            } else {
-                DB::table('deposits')->insert([
-                    'user_id' => $user->id,
-                    'amount' => $plan->amount,
-                    'tokens' => $plan->tokens,
-                    'status' => 'pending',
-                    'proof_image' => $imagePath,
-                    'created_at' => now(),
-                    'updated_at' => now()
-                ]);
-            }
-
-            return response()->json(['message' => 'Xác nhận nạp tiền thành công! Đợi admin duyệt.'], 200);
-        } catch (ValidationException $e) {
-            return response()->json(['message' => $e->validator->errors()->first()], 422);
-        } catch (\Exception $e) {
-            return response()->json(['message' => 'Lỗi server: ' . $e->getMessage()], 500);
-        }
-    }
-
     public function manageDeposits()
     {
         if (Auth::user()->role !== 'admin') {
             return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
         }
 
-        $deposits = DB::table('deposits')->orderBy('created_at', 'desc')->get();
+        $deposits = DB::table('deposits')
+            ->join('users', 'deposits.user_id', '=', 'users.id')
+            ->join('deposit_plans', 'deposits.amount', '=', 'deposit_plans.amount')
+            ->select('deposits.*', 'users.name as user_name', 'deposit_plans.tokens as plan_tokens')
+            ->orderBy('deposits.created_at', 'desc')
+            ->get();
         return view('admin.deposits', compact('deposits'));
     }
 
@@ -429,12 +466,23 @@ class AuthController extends Controller
         if (Auth::user()->role !== 'admin') {
             return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
         }
-
+    
         $detections = DB::table('money_detections')
             ->join('users', 'money_detections.user_id', '=', 'users.id')
-            ->select('money_detections.*', 'users.name as user_name')
+            ->select(
+                'money_detections.id',
+                'money_detections.user_id',
+                'money_detections.amount',
+                'money_detections.result',
+                'money_detections.image',
+                'money_detections.status',
+                'money_detections.created_at',
+                'money_detections.updated_at',
+                'users.name as user_name'
+            )
             ->orderBy('money_detections.created_at', 'desc')
-            ->get();
+            ->paginate(10);
+    
         return view('admin.histori', compact('detections'));
     }
 
@@ -464,13 +512,13 @@ class AuthController extends Controller
         }
 
         $request->validate([
-            'amount' => 'required|numeric',
-            'tokens' => 'required|integer',
+            'amount' => 'required|numeric|min:0',
+            'tokens' => 'required|integer|min:1',
             'description' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
         ]);
 
-        DB::table('deposit_plans')->insert([
+        $planId = DB::table('deposit_plans')->insertGetId([
             'amount' => $request->amount,
             'tokens' => $request->tokens,
             'description' => $request->description,
@@ -503,8 +551,8 @@ class AuthController extends Controller
         }
 
         $request->validate([
-            'amount' => 'required|numeric',
-            'tokens' => 'required|integer',
+            'amount' => 'required|numeric|min:0',
+            'tokens' => 'required|integer|min:1',
             'description' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
         ]);
@@ -544,52 +592,93 @@ class AuthController extends Controller
 
     public function detectMoney(Request $request)
     {
-        if (!Auth::check()) {
-            return response()->json(['error' => 'Vui lòng đăng nhập để nhận diện tiền!'], 401);
+        try {
+            // Kiểm tra đăng nhập
+            if (!Auth::check()) {
+                return response()->json(['error' => 'Vui lòng đăng nhập để nhận diện tiền!'], 401);
+            }
+
+            $userId = Auth::id();
+
+            // Bắt đầu transaction
+            DB::beginTransaction();
+            try {
+                // Lấy user với lock để tránh xung đột
+                $user = DB::table('users')->where('id', $userId)->lockForUpdate()->first();
+                if (!$user || $user->tokens <= 0) {
+                    return response()->json(['error' => 'Bạn không đủ token để nhận diện tiền! Vui lòng nạp thêm.'], 403);
+                }
+
+                // Validate ảnh đầu vào
+                $request->validate(['image' => 'required|image|mimes:jpeg,png,jpg|max:5120']);
+                $imagePath = $request->file('image')->store('money_detections', 'public');
+
+                // Gọi FastAPI
+                $response = Http::timeout(120)->attach(
+                    'file',
+                    file_get_contents($request->file('image')->getPathname()),
+                    $request->file('image')->getClientOriginalName()
+                )->post('http://localhost:55015/detect_money');
+
+                if ($response->failed()) {
+                    return response()->json(['error' => 'Lỗi khi gọi dịch vụ nhận diện tiền', 'details' => $response->body()], $response->status());
+                }
+
+                $data = $response->json();
+                if (empty($data)) {
+                    return response()->json(['error' => 'Phản hồi từ dịch vụ nhận diện rỗng'], 500);
+                }
+
+                // Giảm tokens
+                $affected = DB::table('users')
+                    ->where('id', $userId)
+                    ->where('tokens', '>', 0)
+                    ->update(['tokens' => DB::raw('tokens - 1')]);
+
+                if ($affected === 0) {
+                    throw new \Exception('Không thể giảm tokens');
+                }
+
+                // Lấy tokens mới
+                $newTokens = DB::table('users')->where('id', $userId)->value('tokens');
+
+                // Xử lý thông tin nhận diện
+                $amount = isset($data['detection_info']['denomination']) && $data['detection_info']['denomination'] !== 'Không nhận diện được'
+                    ? (int) filter_var($data['detection_info']['denomination'], FILTER_SANITIZE_NUMBER_INT)
+                    : 0;
+                $result = $data['detection_info']['denomination'] ?? 'Không nhận diện được';
+                $status = $result === 'Không nhận diện được' ? 'Thất bại' : 'Thành công';
+
+                // Lưu lịch sử nhận diện
+                DB::table('money_detections')->insert([
+                    'user_id' => $userId,
+                    'amount' => $amount,
+                
+                    'result' => $result,
+                    'image' => $imagePath,
+                    'status' => $status,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+
+                DB::commit();
+                return response()->json([
+                    'message' => 'Nhận diện thành công',
+                    'data' => $data,
+                    'image_path' => asset('storage/' . $imagePath),
+                    'tokens' => $newTokens
+                ], 200);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Lỗi trong transaction: ' . $e->getMessage());
+                return response()->json(['error' => 'Lỗi khi xử lý nhận diện: ' . $e->getMessage()], 500);
+            }
+        } catch (ValidationException $e) {
+            return response()->json(['error' => 'Dữ liệu không hợp lệ', 'details' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            Log::error('Lỗi trong detectMoney: ' . $e->getMessage());
+            return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
         }
-
-        $user = Auth::user();
-        if ($user->tokens < 1) {
-            return response()->json(['error' => 'Bạn không đủ token để nhận diện tiền! Vui lòng nạp thêm.'], 403);
-        }
-
-        $request->validate(['image' => 'required|image|max:5120']);
-        $image = $request->file('image');
-        $imagePath = $image->getPathname();
-
-        $response = Http::attach(
-            'file',
-            file_get_contents($imagePath),
-            $image->getClientOriginalName()
-        )->post('http://localhost:55015/detect_money');
-
-        $data = $response->json();
-
-        if (isset($data['image'])) {
-            DB::table('users')->where('id', $user->id)->decrement('tokens', 1);
-
-            $imageBase64 = $data['image'];
-            $imageData = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $imageBase64));
-            $imageName = 'money_detections/' . uniqid() . '.jpg';
-            Storage::disk('public')->put($imageName, $imageData);
-            $imagePath = $imageName;
-
-            $amount = $data['detection_info']['denomination'] === 'Không nhận diện được' ? 0 : (int) filter_var($data['detection_info']['denomination'], FILTER_SANITIZE_NUMBER_INT);
-            $result = $data['detection_info']['denomination'] ?? 'Không nhận diện được';
-            $status = $data['detection_info']['denomination'] === 'Không nhận diện được' ? 'Thất bại' : 'Thành công';
-
-            DB::table('money_detections')->insert([
-                'user_id' => $user->id,
-                'amount' => $amount,
-                'result' => $result,
-                'image' => $imagePath,
-                'status' => $status,
-                'created_at' => now(),
-                'updated_at' => now()
-            ]);
-        }
-
-        return response()->json($data);
     }
 
     public function chatbotConfig()
@@ -612,7 +701,7 @@ class AuthController extends Controller
     public function getApiKey(Request $request)
     {
         $modelName = $request->query('model_name');
-        $config = ChatApi::where('model_name', $modelName)->orderBy('updated_at', 'desc')->first();
+        $config = ChatApi::where('model_name', $request->model_name)->orderBy('updated_at', 'desc')->first();
         return response()->json(['api_key' => $config ? $config->api_key : '']);
     }
 
@@ -633,13 +722,12 @@ class AuthController extends Controller
             $response = Http::timeout(60)->withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ])->post('http://localhost:8000/llm-update', [
+            ])->post('http://localhost:55015/llm-update', [
                 'model_name' => $request->model_name,
                 'api_key' => $request->api_key,
             ]);
 
             if ($response->successful()) {
-                // Cập nhật local database
                 $config = ChatApi::latest()->first();
                 if ($config) {
                     $config->update([
@@ -674,37 +762,50 @@ class AuthController extends Controller
 
     public function chat(Request $request)
     {
+        Log::info('API chat called', ['request' => $request->all()]);
+    
+        // Kiểm tra đăng nhập
         if (!Auth::check()) {
+            Log::warning('Unauthenticated access to chat endpoint');
             return response()->json(['error' => 'Vui lòng đăng nhập để sử dụng chatbot!'], 401);
         }
-
+    
         $user = Auth::user();
-        if ($user->tokens < 1) {
-            return response()->json(['error' => 'Bạn không đủ token để sử dụng chatbot! Vui lòng nạp thêm.'], 403);
-        }
-
-        $request->validate([
-            'question' => 'required|string|min:1',
-        ]);
-
+    
         try {
+            // Validate dữ liệu đầu vào
+            $request->validate([
+                'question' => 'required|string|min:1',
+            ]);
+    
+            // Gọi FastAPI
             $response = Http::timeout(90)->withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-            ])->post('http://localhost:8000/chat', [
+            ])->post('http://localhost:55015/chat', [
                 'question' => $request->question,
             ]);
-
+    
+            // Kiểm tra phản hồi từ FastAPI
             if ($response->successful()) {
-                // Trừ token sau khi gọi thành công
-                DB::table('users')->where('id', $user->id)->decrement('tokens', 1);
-                return response()->json($response->json());
+                $data = $response->json();
+                Log::info('Chat response from FastAPI', ['response' => $data]);
+    
+                return response()->json([
+                    'status' => 'success',
+                    'response' => $data['response'] ?? 'Không có phản hồi từ chatbot.',
+                    'tokens' => $user->tokens, // Giữ nguyên số tokens hiện tại
+                ], 200);
             } else {
-                $error = json_decode($response->body(), true);
+                $error = $response->json();
                 $status = $response->status();
-                $detail = $error['detail'] ?? 'Lỗi không xác định từ chatbot';
-                Log::error('Lỗi từ FastAPI /chat: ' . $detail);
-                
+                $detail = $error['detail'] ?? $error['error'] ?? 'Lỗi không xác định từ chatbot';
+                Log::error('FastAPI chat error', [
+                    'status' => $status,
+                    'error' => $detail,
+                    'body' => $response->body()
+                ]);
+    
                 if ($status == 422) {
                     return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . $detail], 422);
                 } elseif ($status == 429) {
@@ -714,11 +815,266 @@ class AuthController extends Controller
                 }
             }
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('Lỗi kết nối tới FastAPI /chat: ' . $e->getMessage());
-            return response()->json(['error' => 'Không thể kết nối tới chatbot. Vui lòng thử lại sau.'], 500);
+            Log::error('Connection error to FastAPI /chat', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Không thể kết nối tới chatbot. Vui lòng kiểm tra dịch vụ FastAPI.'], 503);
+        } catch (ValidationException $e) {
+            Log::warning('Validation error in chat', ['errors' => $e->errors()]);
+            return response()->json([
+                'error' => 'Dữ liệu không hợp lệ',
+                'details' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
-            Log::error('Lỗi khi gọi chatbot: ' . $e->getMessage());
+            Log::error('Unexpected error in chat', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function showDetectionModelConfig()
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        return view('admin.change_model');
+    }
+
+    public function getCurrentDetectionModel()
+    {
+        try {
+            $latestModel = DB::table('detection_models')
+                ->select('source')
+                ->orderBy('updated_at', 'desc')
+                ->first();
+            return response()->json(['source' => $latestModel ? $latestModel->source : null]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi khi lấy nguồn mô hình hiện tại: ' . $e->getMessage());
+            return response()->json(['error' => 'Không thể lấy thông tin mô hình hiện tại'], 500);
+        }
+    }
+
+    public function users()
+    {
+        $users = DB::table('users')->paginate(10);
+        return view('admin.users', compact('users'));
+    }
+
+    public function getUsers(Request $request)
+    {
+        $users = DB::table('users')->select('id', 'name', 'email', 'role', 'tokens')->get();
+        return response()->json($users);
+    }
+
+    public function metadataConfig()
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $metadata = \App\Models\Metadata::first() ?? new \App\Models\Metadata();
+        return view('admin.metadata_config', compact('metadata'));
+    }
+
+    public function updateMetadataConfig(Request $request)
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $request->validate([
+            'site_title' => 'nullable|string|max:255',
+            'site_description' => 'nullable|string',
+            'site_keywords' => 'nullable|string',
+            'favicon' => 'nullable|image|mimes:ico,png,jpg,jpeg|max:2048',
+            'og_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'author' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            $metadata = \App\Models\Metadata::first() ?? new \App\Models\Metadata();
+
+            // Xử lý upload favicon
+            if ($request->hasFile('favicon')) {
+                if ($metadata->favicon) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($metadata->favicon);
+                }
+                $faviconPath = $request->file('favicon')->store('metadata', 'public');
+                $metadata->favicon = $faviconPath;
+            }
+
+            // Xử lý upload OG image
+            if ($request->hasFile('og_image')) {
+                if ($metadata->og_image) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($metadata->og_image);
+                }
+                $ogImagePath = $request->file('og_image')->store('metadata', 'public');
+                $metadata->og_image = $ogImagePath;
+            }
+
+            // Cập nhật các trường khác
+            $metadata->site_title = $request->site_title;
+            $metadata->site_description = $request->site_description;
+            $metadata->site_keywords = $request->site_keywords;
+            $metadata->author = $request->author;
+            $metadata->save();
+
+            return redirect()->back()->with('success', 'Cấu hình metadata đã được cập nhật thành công!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi cập nhật metadata: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Lỗi hệ thống: ' . $e->getMessage());
+        }
+    }
+
+    public function redirectToGoogle()
+    {
+        return Socialite::driver('google')->redirect();
+    }
+
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->user();
+            $user = User::where('google_id', $googleUser->id)->orWhere('email', $googleUser->email)->first();
+
+            if ($user) {
+                if (!$user->google_id) {
+                    $user->update(['google_id' => $googleUser->id]);
+                }
+            } else {
+                $user = User::create([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'google_id' => $googleUser->id,
+                    'password' => Hash::make(uniqid()),
+                    'role' => 'user',
+                    'tokens' => 5,
+                    'balance' => 0.00,
+                ]);
+            }
+
+            Auth::login($user, true);
+            return redirect('/')->with('success', 'Đăng nhập bằng Google thành công!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi đăng nhập bằng Google: ' . $e->getMessage());
+            return redirect('/login')->with('error', 'Lỗi khi đăng nhập bằng Google: ' . $e->getMessage());
+        }
+    }
+
+    public function manageApks()
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $apks = Apk::all();
+        return view('admin.apks', compact('apks'));
+    }
+
+    public function createApk()
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        return view('admin.apk_create');
+    }
+
+    public function storeApk(Request $request)
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'version' => 'required|string|max:50',
+            'description' => 'nullable|string',
+            'apk_file' => 'required|file|mimes:apk|max:102400', // Giới hạn 100MB
+        ]);
+
+        try {
+            $file = $request->file('apk_file');
+            $filePath = $file->store('apks', 'public');
+
+            Apk::create([
+                'name' => $request->name,
+                'version' => $request->version,
+                'description' => $request->description,
+                'file_path' => $filePath,
+            ]);
+
+            return redirect()->route('admin.apks')->with('success', 'Tải lên APK thành công!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi tải lên APK: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Lỗi khi tải lên APK: ' . $e->getMessage());
+        }
+    }
+
+    public function editApk($id)
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $apk = Apk::findOrFail($id);
+        return view('admin.apk_edit', compact('apk'));
+    }
+
+    public function updateApk(Request $request, $id)
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'version' => 'required|string|max:50',
+            'description' => 'nullable|string',
+            'apk_file' => 'nullable|file|mimes:apk|max:102400',
+        ]);
+
+        try {
+            $apk = Apk::findOrFail($id);
+
+            $data = [
+                'name' => $request->name,
+                'version' => $request->version,
+                'description' => $request->description,
+            ];
+
+            if ($request->hasFile('apk_file')) {
+                if ($apk->file_path) {
+                    Storage::disk('public')->delete($apk->file_path);
+                }
+                $filePath = $request->file('apk_file')->store('apks', 'public');
+                $data['file_path'] = $filePath;
+            }
+
+            $apk->update($data);
+
+            return redirect()->route('admin.apks')->with('success', 'Cập nhật APK thành công!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi cập nhật APK: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Lỗi khi cập nhật APK: ' . $e->getMessage());
+        }
+    }
+
+    public function destroyApk($id)
+    {
+        if (Auth::user()->role !== 'admin') {
+            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+        }
+
+        try {
+            $apk = Apk::findOrFail($id);
+            if ($apk->file_path) {
+                Storage::disk('public')->delete($apk->file_path);
+            }
+            $apk->delete();
+
+            return redirect()->route('admin.apks')->with('success', 'Xóa APK thành công!');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Lỗi khi xóa APK: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Lỗi khi xóa APK: ' . $e->getMessage());
         }
     }
 }
