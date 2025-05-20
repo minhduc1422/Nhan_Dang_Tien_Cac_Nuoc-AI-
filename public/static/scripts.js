@@ -484,6 +484,10 @@ async function sendMessage() {
         showError("Vui lòng nhập câu hỏi!");
         return;
     }
+    if (!question.match(/[\p{L}\p{N}\s.,!?]/u)) {
+        showError("Câu hỏi chứa ký tự không hợp lệ. Vui lòng nhập lại!");
+        return;
+    }
 
     const chatMessages = document.getElementById("chat-messages");
     const userMessage = document.createElement("div");
@@ -496,23 +500,35 @@ async function sendMessage() {
     showChatLoading(true);
 
     try {
-        const response = await fetchWithRetry("http://localhost:55015/chat", {
+        const response = await fetchWithRetry("/chat", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content
             },
             body: JSON.stringify({ question: question }),
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || errorData.detail || "Lỗi từ chatbot");
+            const errorData = await response.json().catch(() => ({}));
+            let errorMessage = errorData.error || errorData.detail || "Lỗi không xác định từ server";
+            if (response.status === 400) {
+                errorMessage = errorData.detail || "Yêu cầu không hợp lệ.";
+            } else if (response.status === 401) {
+                errorMessage = "Vui lòng đăng nhập để sử dụng chatbot.";
+            } else if (response.status === 429) {
+                errorMessage = "Đã vượt quá giới hạn yêu cầu.";
+            } else if (response.status === 500) {
+                errorMessage = errorData.detail || "Lỗi hệ thống từ chatbot.";
+            }
+            throw new Error(errorMessage);
         }
 
         const data = await response.json();
         const botMessage = document.createElement("div");
         botMessage.className = "message bot-message";
-        botMessage.textContent = data.response || "Lỗi khi xử lý câu hỏi.";
+        botMessage.textContent = data.response || "Không có phản hồi từ chatbot.";
         chatMessages.appendChild(botMessage);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     } catch (error) {
@@ -526,7 +542,6 @@ async function sendMessage() {
         showChatLoading(false);
     }
 }
-
 /**
  * Hiển thị thông báo lỗi.
  * @param {string} message - Thông điệp lỗi.

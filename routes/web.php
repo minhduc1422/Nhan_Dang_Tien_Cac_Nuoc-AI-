@@ -53,7 +53,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/apks/{id}/edit', [AuthController::class, 'editApk'])->name('admin.apks.edit');
     Route::put('/admin/apks/{id}', [AuthController::class, 'updateApk'])->name('admin.apks.update');
     Route::delete('/admin/apks/{id}', [AuthController::class, 'destroyApk'])->name('admin.apks.destroy');
+
 });
+Route::post('/chat', [AuthController::class, 'chat'])->name('chat');
 
 Route::post('/detect-money', [AuthController::class, 'detectMoney']);
-Route::post('/chat', [AuthController::class, 'chat'])->name('chat');

@@ -8,7 +8,10 @@
 body {
     background-color: #f8f9fa;
     color: #333;
-    margin-left: 240px;
+    background: url('https://www.transparenttextures.com/patterns/arabesque.png'), #fff;
+}
+section{
+    background: transparent!important;
 }
 
 /* Header */
@@ -201,7 +204,7 @@ header::before {
     max-width: 1200px;
     margin: 0 auto;
     position: relative;
-    background: url('https://www.transparenttextures.com/patterns/arabesque.png'), #fff;
+    
 }
 
 .discover-header {
@@ -236,6 +239,7 @@ header::before {
     width: 100%;
     max-width: 1000px;
     margin: 0 auto;
+    box-shadow: #ccc 1px 2px 10px 4px;
 }
 
 .discover-item img {
@@ -298,7 +302,7 @@ header::before {
     background-color: #fff;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: #ccc 1px 2px 10px 4px;
 }
 
 .currency-item h3 {

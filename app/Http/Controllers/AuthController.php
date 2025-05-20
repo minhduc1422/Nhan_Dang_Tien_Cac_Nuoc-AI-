@@ -356,7 +356,7 @@ class AuthController extends Controller
     public function deleteUser(Request $request, $id)
     {
         if (Auth::user()->role !== 'admin') {
-            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+            return redirect()->route('admin.users')->with('error', 'Bạn không có quyền truy cập!');
         }
 
         $user = User::find($id);
@@ -366,6 +366,10 @@ class AuthController extends Controller
 
         if ($user->id === Auth::user()->id) {
             return redirect()->route('admin.users')->with('error', 'Bạn không thể xóa chính mình!');
+        }
+
+        if ($user->role === 'admin') {
+            return redirect()->route('admin.users')->with('error', 'Không thể xóa tài khoản admin!');
         }
 
         if ($user->avatar) {
@@ -760,71 +764,79 @@ class AuthController extends Controller
         }
     }
 
-    public function chat(Request $request)
+public function chat(Request $request)
     {
         Log::info('API chat called', ['request' => $request->all()]);
-    
-        // Kiểm tra đăng nhập
-        if (!Auth::check()) {
-            Log::warning('Unauthenticated access to chat endpoint');
-            return response()->json(['error' => 'Vui lòng đăng nhập để sử dụng chatbot!'], 401);
-        }
-    
-        $user = Auth::user();
-    
+
         try {
-            // Validate dữ liệu đầu vào
+            // Validate và làm sạch dữ liệu đầu vào
             $request->validate([
-                'question' => 'required|string|min:1',
+                'question' => 'required|string|min:1|max:1000', // Giới hạn độ dài
             ]);
-    
+
+            // Làm sạch question để loại bỏ ký tự không hợp lệ
+            $question = trim(preg_replace('/[^\p{L}\p{N}\s.,!?]/u', '', $request->question));
+            if (empty($question)) {
+                Log::warning('Câu hỏi không hợp lệ sau khi làm sạch', ['original' => $request->question]);
+                return response()->json(['error' => 'Câu hỏi chứa ký tự không hợp lệ.'], 400);
+            }
+
+            Log::info('Câu hỏi sau khi làm sạch', ['question' => $question]);
+
             // Gọi FastAPI
             $response = Http::timeout(90)->withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
             ])->post('http://localhost:55015/chat', [
-                'question' => $request->question,
+                'question' => $question,
             ]);
-    
+
+            // Ghi log toàn bộ phản hồi từ FastAPI
+            Log::info('Gửi yêu cầu tới FastAPI', [
+                'url' => 'http://localhost:55015/chat',
+                'request' => ['question' => $question],
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'headers' => $response->headers()
+            ]);
+
             // Kiểm tra phản hồi từ FastAPI
             if ($response->successful()) {
                 $data = $response->json();
-                Log::info('Chat response from FastAPI', ['response' => $data]);
-    
+                Log::info('Phản hồi từ FastAPI', ['response' => $data]);
+
                 return response()->json([
                     'status' => 'success',
                     'response' => $data['response'] ?? 'Không có phản hồi từ chatbot.',
-                    'tokens' => $user->tokens, // Giữ nguyên số tokens hiện tại
+                    'source' => $data['source'] ?? 'unknown',
                 ], 200);
             } else {
-                $error = $response->json();
+                $error = $response->json() ?? [];
                 $status = $response->status();
-                $detail = $error['detail'] ?? $error['error'] ?? 'Lỗi không xác định từ chatbot';
-                Log::error('FastAPI chat error', [
+                $detail = $error['detail'] ?? $error['error'] ?? $response->body() ?? 'Lỗi không xác định từ chatbot';
+                Log::error('Lỗi FastAPI chat', [
                     'status' => $status,
                     'error' => $detail,
-                    'body' => $response->body()
+                    'body' => $response->body(),
+                    'headers' => $response->headers()
                 ]);
-    
-                if ($status == 422) {
-                    return response()->json(['error' => 'Dữ liệu không hợp lệ: ' . $detail], 422);
-                } elseif ($status == 429) {
-                    return response()->json(['error' => 'Đã vượt quá giới hạn yêu cầu. Vui lòng thử lại sau.'], 429);
-                } else {
-                    return response()->json(['error' => 'Lỗi từ chatbot: ' . $detail], $status);
-                }
+
+                return response()->json([
+                    'error' => $detail,
+                    'status' => $status,
+                ], $status);
             }
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('Connection error to FastAPI /chat', ['message' => $e->getMessage()]);
+            Log::error('Lỗi kết nối tới FastAPI /chat', ['message' => $e->getMessage()]);
             return response()->json(['error' => 'Không thể kết nối tới chatbot. Vui lòng kiểm tra dịch vụ FastAPI.'], 503);
         } catch (ValidationException $e) {
-            Log::warning('Validation error in chat', ['errors' => $e->errors()]);
+            Log::warning('Lỗi xác thực dữ liệu trong chat', ['errors' => $e->errors()]);
             return response()->json([
                 'error' => 'Dữ liệu không hợp lệ',
                 'details' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
-            Log::error('Unexpected error in chat', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            Log::error('Lỗi bất ngờ trong chat', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Lỗi hệ thống: ' . $e->getMessage()], 500);
         }
     }
@@ -978,37 +990,63 @@ class AuthController extends Controller
         return view('admin.apk_create');
     }
 
-    public function storeApk(Request $request)
-    {
-        if (Auth::user()->role !== 'admin') {
-            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
-        }
-
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'version' => 'required|string|max:50',
-            'description' => 'nullable|string',
-            'apk_file' => 'required|file|mimes:apk|max:102400', // Giới hạn 100MB
-        ]);
-
-        try {
-            $file = $request->file('apk_file');
-            $filePath = $file->store('apks', 'public');
-
-            Apk::create([
-                'name' => $request->name,
-                'version' => $request->version,
-                'description' => $request->description,
-                'file_path' => $filePath,
-            ]);
-
-            return redirect()->route('admin.apks')->with('success', 'Tải lên APK thành công!');
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Lỗi khi tải lên APK: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Lỗi khi tải lên APK: ' . $e->getMessage());
-        }
+public function storeApk(Request $request)
+{
+    if (Auth::user()->role !== 'admin') {
+        return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
     }
 
+    // Debug thông tin request và file
+    Log::info('Store APK request:', [
+        'files' => $request->allFiles(),
+        'input' => $request->all(),
+        'mime_type' => $request->hasFile('apk_file') ? $request->file('apk_file')->getClientMimeType() : null,
+        'extension' => $request->hasFile('apk_file') ? $request->file('apk_file')->getClientOriginalExtension() : null,
+    ]);
+
+    // Validation không dùng mimes, chỉ kiểm tra file và kích thước
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'version' => 'required|string|max:50',
+        'description' => 'nullable|string',
+        'apk_file' => 'required|file|max:102400', // Bỏ mimes, kiểm tra thủ công
+    ]);
+
+    try {
+        // Kiểm tra phần mở rộng .apk
+        $file = $request->file('apk_file');
+        if (strtolower($file->getClientOriginalExtension()) !== 'apk') {
+            Log::error('File không phải .apk', [
+                'file' => $file->getClientOriginalName(),
+                'extension' => $file->getClientOriginalExtension(),
+            ]);
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'apk_file' => 'File phải là định dạng APK (.apk).',
+            ]);
+        }
+
+        // Lưu file
+        $filePath = $file->store('apks', 'public');
+
+        // Tạo bản ghi trong bảng apks
+        Apk::create([
+            'name' => $request->name,
+            'version' => $request->version,
+            'description' => $request->description,
+            'file_path' => $filePath,
+        ]);
+
+        return redirect()->route('admin.apks')->with('success', 'Tải lên APK thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation error when uploading APK: ' . $e->getMessage());
+        return redirect()->back()->withErrors($e->errors())->withInput();
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi tải lên APK: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return redirect()->back()->with('error', 'Lỗi khi tải lên APK: ' . $e->getMessage());
+    }
+}
     public function editApk($id)
     {
         if (Auth::user()->role !== 'admin') {
@@ -1019,44 +1057,74 @@ class AuthController extends Controller
         return view('admin.apk_edit', compact('apk'));
     }
 
-    public function updateApk(Request $request, $id)
-    {
-        if (Auth::user()->role !== 'admin') {
-            return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
-        }
+public function updateApk(Request $request, $id)
+{
+    if (Auth::user()->role !== 'admin') {
+        return redirect('/')->with('error', 'Bạn không có quyền truy cập!');
+    }
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'version' => 'required|string|max:50',
-            'description' => 'nullable|string',
-            'apk_file' => 'nullable|file|mimes:apk|max:102400',
-        ]);
+    // Debug thông tin request và file
+    Log::info('Update APK request:', [
+        'files' => $request->allFiles(),
+        'input' => $request->all(),
+        'mime_type' => $request->hasFile('apk_file') ? $request->file('apk_file')->getClientMimeType() : null,
+        'extension' => $request->hasFile('apk_file') ? $request->file('apk_file')->getClientOriginalExtension() : null,
+    ]);
 
-        try {
-            $apk = Apk::findOrFail($id);
+    // Validation không dùng mimes
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'version' => 'required|string|max:50',
+        'description' => 'nullable|string',
+        'apk_file' => 'nullable|file|max:102400', // Bỏ mimes, kiểm tra thủ công
+    ]);
 
-            $data = [
-                'name' => $request->name,
-                'version' => $request->version,
-                'description' => $request->description,
-            ];
+    try {
+        $apk = Apk::findOrFail($id);
 
-            if ($request->hasFile('apk_file')) {
-                if ($apk->file_path) {
-                    Storage::disk('public')->delete($apk->file_path);
-                }
-                $filePath = $request->file('apk_file')->store('apks', 'public');
-                $data['file_path'] = $filePath;
+        $data = [
+            'name' => $request->name,
+            'version' => $request->version,
+            'description' => $request->description,
+        ];
+
+        if ($request->hasFile('apk_file')) {
+            // Kiểm tra phần mở rộng .apk
+            $file = $request->file('apk_file');
+            if (strtolower($file->getClientOriginalExtension()) !== 'apk') {
+                Log::error('File không phải .apk', [
+                    'file' => $file->getClientOriginalName(),
+                    'extension' => $file->getClientOriginalExtension(),
+                ]);
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'apk_file' => 'File phải là định dạng APK (.apk).',
+                ]);
             }
 
-            $apk->update($data);
+            // Xóa file cũ nếu có
+            if ($apk->file_path) {
+                Storage::disk('public')->delete($apk->file_path);
+            }
 
-            return redirect()->route('admin.apks')->with('success', 'Cập nhật APK thành công!');
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Lỗi khi cập nhật APK: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Lỗi khi cập nhật APK: ' . $e->getMessage());
+            // Lưu file mới
+            $filePath = $file->store('apks', 'public');
+            $data['file_path'] = $filePath;
         }
+
+        // Cập nhật bản ghi
+        $apk->update($data);
+
+        return redirect()->route('admin.apks')->with('success', 'Cập nhật APK thành công!');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Validation error when updating APK: ' . $e->getMessage());
+        return redirect()->back()->withErrors($e->errors())->withInput();
+    } catch (\Exception $e) {
+        Log::error('Lỗi khi cập nhật APK: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+        ]);
+        return redirect()->back()->with('error', 'Lỗi khi cập nhật APK: ' . $e->getMessage());
     }
+}
 
     public function destroyApk($id)
     {

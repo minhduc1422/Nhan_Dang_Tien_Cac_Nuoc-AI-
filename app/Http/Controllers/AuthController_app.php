@@ -13,13 +13,13 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Str;
 class AuthController_app extends Controller
 {
     /**
      * Hàm xác thực thủ công bằng email và password
      */
-    private function authenticate(Request $request)
+private function authenticate(Request $request)
     {
         try {
             $request->validate([
@@ -516,4 +516,50 @@ class AuthController_app extends Controller
             ], 500);
         }
     }
+    public function googleLogin(Request $request)
+    {
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'name' => 'required|string|max:255',
+            ]);
+
+            $user = User::where('email', $request->email)->first();
+            if (!$user) {
+                $user = User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => Hash::make(Str::random(16)),
+                    'role' => 'user',
+                    'tokens' => 5,
+                    'balance' => 0.00,
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar' => $user->avatar ? asset('storage/' . $user->avatar) : null,
+                    'tokens' => $user->tokens
+                ],
+                'message' => 'Đăng nhập Google thành công!'
+            ], 200);
+        } catch (ValidationException $e) {
+            Log::error('Validation error in googleLogin: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->validator->errors()->first(),
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error in googleLogin: ' . $e->getMessage());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi hệ thống: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+    
 }

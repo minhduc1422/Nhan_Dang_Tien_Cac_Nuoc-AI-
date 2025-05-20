@@ -16,6 +16,8 @@ Route::prefix('app')->group(function () {
     Route::post('/update-avatar', [AuthController_app::class, 'updateAvatar'])->name('api.app.update-avatar');
     Route::post('/delete-account', [AuthController_app::class, 'deleteAccount'])->name('api.app.delete-account');
     Route::post('/logout', [AuthController_app::class, 'logout'])->name('api.app.logout');
+    // Endpoint mới cho Google Sign-In
+    Route::post('/google-login', [AuthController_app::class, 'googleLogin'])->name('api.app.google-login');
 });
 
 // Tuyến khác

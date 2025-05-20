@@ -52,10 +52,10 @@
                             <td>{{ \Carbon\Carbon::parse($deposit->created_at)->format('d/m/Y H:i:s') }}</td>
                             <td>
                                 @if ($deposit->status == 'pending')
-                                    <form action="{{ route('admin.deposits.update', $deposit->id) }}" method="POST" style="display:inline;">
+                                    <form action="{{ route('admin.deposits.update', $deposit->id) }}" method="POST" class="status-form" style="display:inline;">
                                         @csrf
                                         @method('PUT')
-                                        <select name="status" onchange="this.form.submit()">
+                                        <select name="status" class="status-select">
                                             <option value="pending" selected>Chờ duyệt</option>
                                             <option value="completed">Duyệt</option>
                                             <option value="failed">Hủy</option>
@@ -219,14 +219,20 @@
     }
     </style>
 
+@section('scripts')
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js"></script>
     <script>
-    // JavaScript để xử lý modal phóng to hình ảnh
     document.addEventListener('DOMContentLoaded', function () {
         const modal = document.getElementById('imageModal');
         const modalImg = document.getElementById('modalImage');
         const closeBtn = document.getElementsByClassName('close')[0];
         const imageLinks = document.getElementsByClassName('image-link');
+        const statusForms = document.getElementsByClassName('status-form');
+        const statusSelects = document.getElementsByClassName('status-select');
 
+        // Xử lý modal phóng to hình ảnh
         Array.from(imageLinks).forEach(link => {
             link.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -244,6 +250,32 @@
                 modal.style.display = 'none';
             }
         });
+
+        // Xử lý thay đổi trạng thái với SweetAlert
+        Array.from(statusSelects).forEach((select, index) => {
+            select.addEventListener('change', function (e) {
+                e.preventDefault();
+                const form = statusForms[index];
+                const selectedValue = this.value;
+
+                Swal.fire({
+                    title: 'Xác nhận',
+                    text: 'Bạn có chắc chắn muốn thay đổi trạng thái này?',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Lưu',
+                    cancelButtonText: 'Hủy'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        form.submit();
+                    } else {
+                        // Đặt lại giá trị select về giá trị ban đầu
+                        select.value = 'pending';
+                    }
+                });
+            });
+        });
     });
     </script>
+@endsection
 @endsection

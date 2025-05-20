@@ -20,13 +20,77 @@
     <link rel="stylesheet" href="{{ asset('static/styles.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* CSS cho thanh mục lục ngang */
+        .topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #1a1a1a;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .topbar h3 {
+            color: #fff;
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .topbar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+        }
+        .topbar ul li {
+            margin: 0 10px;
+        }
+        .topbar ul li a, .topbar ul li .deposit-btn, .topbar ul li .logout-btn {
+            color: #fff;
+            text-decoration: none;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+            transition: background 0.3s ease;
+        }
+        .topbar ul li a:hover, .topbar ul li .deposit-btn:hover, .topbar ul li .logout-btn:hover {
+            background: #555;
+        }
+        .topbar ul li form {
+            display: inline;
+        }
+        .user-info-topbar {
+            display: flex;
+            align-items: center;
+        }
+        .user-avatar {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 8px;
+            cursor: pointer;
+            border: 2px solid #ff8c00;
+        }
+        .user-info-topbar span {
+            color: #fff;
+            font-size: 0.85em;
+        }
+        /* Điều chỉnh các phần khác để không bị che bởi topbar */
+        header {
+            margin-top: 50px;
+        }
+        /* Các CSS khác giữ nguyên */
         .loader {
-            width: 120px;
-            height: 20px;
-            border-radius: 20px;
+            width: 100px;
+            height: 15px;
+            border-radius: 15px;
             background: linear-gradient(orange 0 0) 0/0% no-repeat lightblue;
             animation: l2 2s infinite steps(10);
-            margin: 10px auto;
+            margin: 8px auto;
         }
         @keyframes l2 {
             100% {background-size:110%}
@@ -36,74 +100,78 @@
             display: none;
         }
         #loading p {
-            margin: 5px 0;
-            font-size: 1em;
+            margin: 4px 0;
+            font-size: 0.9em;
             color: #2c3e50;
         }
         #chat-container {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 300px;
+            bottom: 15px;
+            right: 15px;
+            width: 280px;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             transition: all 0.3s ease;
         }
         #chat-header {
             background: #2c3e50;
             color: white;
-            padding: 10px;
+            padding: 8px;
             text-align: center;
             cursor: pointer;
+            font-size: 0.9em;
         }
         #chat-messages {
-            max-height: 300px;
+            max-height: 250px;
             overflow-y: auto;
-            padding: 10px;
+            padding: 8px;
             display: none;
         }
         #chat-input-container {
             display: flex;
-            padding: 10px;
+            padding: 8px;
             border-top: 1px solid #ddd;
             display: none;
         }
         #chat-input {
             flex: 1;
-            padding: 5px;
+            padding: 4px;
             border: 1px solid #ddd;
-            border-radius: 5px;
-            margin-right: 5px;
+            border-radius: 4px;
+            margin-right: 4px;
+            font-size: 0.8em;
         }
         #chat-send {
-            padding: 5px 10px;
+            padding: 4px 8px;
             background: #2c3e50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 0.8em;
         }
         #chat-container.active #chat-messages,
         #chat-container.active #chat-input-container {
             display: block;
         }
         .message {
-            margin: 5px 0;
-            padding: 5px 10px;
-            border-radius: 5px;
+            margin: 4px 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
         }
         .user-message {
             background: hsl(136, 91.50%, 46.10%);
             color: black;
             margin-left: 20%;
-            margin-right: 5px;
+            margin-right: 4px;
         }
         .bot-message {
             background: #f1f1f1;
             margin-right: 20%;
-            margin-left: 5px;
+            margin-left: 4px;
         }
         img {
             transition: transform 0.3s ease;
@@ -125,125 +193,6 @@
         button:hover, .deposit-btn:hover, .logout-btn:hover {
             transform: scale(1.1);
         }
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100%;
-            width: 60px;
-            background: #1a1a1a;
-            padding: 20px 10px;
-            transition: width 0.3s ease;
-            overflow-x: hidden;
-            z-index: 1000;
-        }
-        .sidebar:hover {
-            width: 250px;
-        }
-        .sidebar h3 {
-            color: #fff;
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.2em;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .sidebar:hover h3 {
-            opacity: 1;
-        }
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-        }
-        .sidebar ul li {
-            margin: 15px 0;
-            display: flex;
-            align-items: center;
-        }
-        .sidebar ul li a, .sidebar ul li .deposit-btn, .sidebar ul li .logout-btn {
-            color: #fff;
-            text-decoration: none;
-            display: block;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .sidebar:hover ul li a, .sidebar:hover ul li .deposit-btn, .sidebar:hover ul li .logout-btn {
-            opacity: 1;
-        }
-        .sidebar ul li a:hover {
-            background: #555;
-        }
-        .sidebar ul li .user-info-sidebar {
-            opacity: 1;
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .sidebar:hover ul li .user-info-sidebar {
-            opacity: 1;
-        }
-        .sidebar ul li .user-avatar {
-            opacity: 1;
-        }
-        .sidebar ul li form {
-            display: inline;
-        }
-        .sidebar ul li a::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-            color: #fff;
-            margin-right: 10px;
-            opacity: 1;
-            width: 20px;
-            text-align: center;
-        }
-        .sidebar ul li:nth-child(1) a::before { content: "\f05a"; }
-        .sidebar ul li:nth-child(2) a::before { content: "\f002"; }
-        .sidebar ul li:nth-child(3) a::before { content: "\f0d6"; }
-        .sidebar ul li:nth-child(4) a::before { content: "\f135"; }
-        .sidebar ul li:nth-child(5) a::before { content: "\f090"; }
-        .sidebar ul li .deposit-btn::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-            content: "\f3d1";
-            color: #fff;
-            margin-right: 10px;
-            opacity: 1;
-            width: 20px;
-            text-align: center;
-        }
-        .sidebar ul li .logout-btn::before {
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
-            content: "\f2f5";
-            color: #fff;
-            margin-right: 10px;
-            opacity: 1;
-            width: 20px;
-            text-align: center;
-        }
-        .user-info-sidebar {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            margin-right: 10px;
-            cursor: pointer;
-            border: 2px solid #ff8c00;
-        }
-        .user-info-sidebar span {
-            color: #fff;
-            font-size: 0.9em;
-        }
         #youtube-video-wrapper {
             margin: 20px auto;
             max-width: 800px;
@@ -258,77 +207,707 @@
         }
         #result-container {
             background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin: 20px auto;
-            max-width: 600px;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 15px auto;
+            max-width: 100%;
         }
         #result-image {
             max-width: 100%;
             height: auto;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
         }
         .info-bar {
             background: #e8f4f8;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
             border: 1px solid #d1e7dd;
-            font-size: 1em;
+            font-size: 0.9em;
             color: #333;
         }
         .info-bar p {
-            margin: 5px 0;
+            margin: 4px 0;
         }
         #result-error {
             text-align: center;
-            font-size: 1em;
-            margin-top: 10px;
+            font-size: 0.9em;
+            margin-top: 8px;
         }
         .token-display {
             background: #2c3e50;
             color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            margin: 10px auto;
+            padding: 8px 15px;
+            border-radius: 15px;
+            margin: 8px auto;
             display: inline-block;
-            font-size: 1em;
+            font-size: 0.9em;
             font-weight: bold;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
         .token-display i {
-            margin-right: 5px;
+            margin-right: 4px;
         }
+        /* Tích hợp styles.css với kích thước điều chỉnh */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            background: url('https://www.transparenttextures.com/patterns/arabesque.png'), #fff;
+        }
+        section {
+            background: transparent !important;
+        }
+        header {
+            padding: 15px 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 1200px;
+            margin: 50px auto 0;
+            position: relative;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: url('https://www.transparenttextures.com/patterns/arabesque.png');
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .hero {
+            position: relative;
+            padding: 30px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            height: auto;
+            min-height: 500px;
+        }
+        #bg-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        .hero-content h1 {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .hero-content p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        #upload-container {
+            margin-bottom: 15px;
+        }
+        #image-input {
+            margin: 8px auto;
+            display: block;
+            width: 100%;
+            max-width: 300px;
+        }
+        #upload-button {
+            padding: 8px 16px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16;
+        }
+        #upload-button:hover {
+            background-color: #34495e;
+        }
+        #loading {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #fff;
+        }
+        .info-bar {
+            background-color: #E6F7FA;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 8px;
+            text-align: left;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        #detection-info {
+            border-left: 3px solid #00c4cc;
+        }
+        #money-details {
+            border-left: 3px solid #4ecdc4;
+        }
+        .info-bar p {
+            margin: 4px 0;
+            font-size: 14px;
+            color: #333;
+        }
+        .info-bar strong {
+            color: #1a2a44;
+        }
+        .discover {
+            padding: 30px 20px;
+            text-align: center;
+            background-color: #fff;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+        .discover-header {
+            text-align: center;
+        }
+        .discover h2 {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .discover p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .discover-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .discover-item {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            background-color: #fff;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: #ccc 1px 2px 8px 3px;
+        }
+        .discover-item img {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 8px;
+            margin: 0 15px;
+        }
+        .discover-text {
+            flex: 1;
+            padding: 0 15px;
+            max-width: 500px;
+        }
+        .discover-text h3 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .discover-text p {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .currencies {
+            padding: 30px 20px;
+            text-align: center;
+            background-color: #f8f9fa;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .currencies-header {
+            text-align: center;
+        }
+        .currencies h2 {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .currencies p {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .currencies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .currency-item {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: #ccc 1px 2px 8px 3px;
+        }
+        .currency-item h3 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .currency-item p {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .cta {
+            text-align: center;
+            padding: 30px 20px;
+            background-color: #1a2a44;
+            color: #fff;
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            background: url('https://www.transparenttextures.com/patterns/arabesque.png'), #1a2a44;
+        }
+        .cta h3 {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .cta p {
+            font-size: 16px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        .cta button {
+            padding: 8px 16px;
+            background-color: #fff;
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .cta button:hover {
+            background-color: #eee;
+        }
+        footer {
+            text-align: center;
+            padding: 30px 20px;
+            background-color: #fff;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .footer-nav {
+            margin-bottom: 15px;
+        }
+        .footer-nav a {
+            margin: 0 10px;
+            color: #333;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .footer-nav a:hover {
+            color: #00c4cc;
+        }
+        .footer-social {
+            margin-bottom: 15px;
+        }
+        .footer-social a {
+            margin: 0 8px;
+            color: #333;
+            font-size: 20px;
+            text-decoration: none;
+        }
+        .footer-social a:hover {
+            color: #00c4cc;
+        }
+        footer p {
+            color: #666;
+            font-size: 14px;
+        }
+        /* Media queries cho di động */
         @media (max-width: 768px) {
-            #result-container {
-                max-width: 100%;
-                padding: 10px;
+            .topbar {
+                padding: 8px 10px;
             }
-            #result-image {
-                max-width: 100%;
-                height: auto;
+            .topbar h3 {
+                font-size: 1em;
+            }
+            .topbar ul li {
+                margin: 0 8px;
+            }
+            .topbar ul li a, .topbar ul li .deposit-btn, .topbar ul li .logout-btn {
+                font-size: 0.8em;
+                padding: 3px 6px;
+            }
+            .user-info-topbar span {
+                font-size: 0.8em;
+            }
+            .user-avatar {
+                width: 22px;
+                height: 22px;
+                margin-right: 6px;
+            }
+            header {
+                padding: 10px 15px;
+            }
+            .logo {
+                font-size: 20px;
+            }
+            .hero {
+                padding: 20px 15px;
+                min-height: 400px;
+            }
+            .hero-content h1 {
+                font-size: 28px;
+                margin-bottom: 10px;
+            }
+            .hero-content p {
+                font-size: 14px;
+                margin-bottom: 15px;
             }
             #upload-container {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
+                margin-bottom: 10px;
             }
-            #upload-container input,
-            #upload-container button {
-                width: 100%;
-                margin: 5px 0;
+            #image-input {
+                max-width: 250px;
+            }
+            #upload-button {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            #loading {
+                margin-top: 10px;
+                font-size: 14px;
+            }
+            .loader {
+                width: 80px;
+                height: 12px;
+                margin: 6px auto;
+            }
+            #loading p {
+                font-size: 0.8em;
+            }
+            #result-container {
+                padding: 10px;
+                margin: 10px auto;
+            }
+            #result-image {
+                margin-bottom: 8px;
+            }
+            .info-bar {
+                padding: 8px;
+                margin: 6px 0;
+                font-size: 0.8em;
+            }
+            .info-bar p {
+                font-size: 13px;
+            }
+            #result-error {
+                font-size: 0.8em;
+                margin-top: 6px;
             }
             .token-display {
+                padding: 6px 12px;
+                font-size: 0.8em;
+                margin: 6px auto;
+            }
+            .discover {
+                padding: 20px 15px;
+            }
+            .discover h2 {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+            .discover p {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            .discover-item {
+                max-width: 100%;
+                margin: 0 auto;
+            }
+            .discover-item img {
+                max-width: 300px;
+                margin: 0 10px;
+            }
+            .discover-text {
+                padding: 0 10px;
+                max-width: 400px;
+            }
+            .discover-text h3 {
+                font-size: 20px;
+                margin-bottom: 6px;
+            }
+            .discover-text p {
+                font-size: 14px;
+            }
+            .currencies {
+                padding: 20px 15px;
+            }
+            .currencies h2 {
+                font-size: 24px;
+                margin-bottom: 10px;
+            }
+            .currencies p {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            #youtube-video-wrapper {
+                margin: 10px auto;
+            }
+            #youtube-video-wrapper iframe {
+                height: 180px;
+            }
+            .currencies-grid {
+                gap: 10px;
+            }
+            .currency-item {
+                padding: 10px;
+            }
+            .currency-item h3 {
+                font-size: 18px;
+                margin-bottom: 6px;
+            }
+            .currency-item p {
+                font-size: 13px;
+            }
+            .cta {
+                padding: 20px 15px;
+            }
+            .cta h3 {
+                font-size: 22px;
+                margin-bottom: 10px;
+            }
+            .cta p {
+                font-size: 14px;
+                margin-bottom: 15px;
+            }
+            .cta button {
+                padding: 6px 12px;
+                font-size: 14px;
+            }
+            footer {
+                padding: 20px 15px;
+            }
+            .footer-nav a {
+                margin: 0 8px;
+                font-size: 12px;
+            }
+            .footer-social a {
+                margin: 0 6px;
+                font-size: 18px;
+            }
+            footer p {
+                font-size: 12px;
+            }
+            #chat-container {
+                width: 90%;
+                bottom: 10px;
+                right: 10px;
+            }
+            #chat-header {
+                padding: 6px;
+                font-size: 0.85em;
+            }
+            #chat-messages {
+                max-height: 200px;
+                padding: 6px;
+            }
+            #chat-input-container {
+                padding: 6px;
+            }
+            #chat-input {
+                font-size: 0.75em;
+                padding: 3px;
+            }
+            #chat-send {
+                font-size: 0.75em;
+                padding: 3px 6px;
+            }
+            .message {
+                font-size: 0.75em;
+                padding: 3px 6px;
+            }
+        }
+        @media (max-width: 480px) {
+            .topbar {
+                padding: 6px 8px;
+            }
+            .topbar h3 {
                 font-size: 0.9em;
-                padding: 8px 15px;
+            }
+            .topbar ul li {
+                margin: 0 6px;
+            }
+            .topbar ul li a, .topbar ul li .deposit-btn, .topbar ul li .logout-btn {
+                font-size: 0.75em;
+                padding: 2px 5px;
+            }
+            .user-avatar {
+                width: 20px;
+                height: 20px;
+                margin-right: 5px;
+            }
+            .user-info-topbar span {
+                font-size: 0.75em;
+            }
+            header {
+                padding: 8px 10px;
+            }
+            .logo {
+                font-size: 18px;
+            }
+            .hero {
+                padding: 15px 10px;
+                min-height: 350px;
+            }
+            .hero-content h1 {
+                font-size: 24px;
+            }
+            .hero-content p {
+                font-size: 12px;
+            }
+            #image-input {
+                max-width: 200px;
+            }
+            #upload-button {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            #loading {
+                margin-top: 8px;
+                font-size: 12px;
+            }
+            .loader {
+                width: 60px;
+                height: 10px;
+            }
+            #loading p {
+                font-size: 0.75em;
+            }
+            #result-container {
+                padding: 8px;
+                margin: 8px auto;
+            }
+            .info-bar {
+                padding: 6px;
+                font-size: 0.75em;
+            }
+            .info-bar p {
+                font-size: 12px;
+            }
+            #result-error {
+                font-size: 0.75em;
+            }
+            .token-display {
+                padding: 5px 10px;
+                font-size: 0.75em;
+            }
+            .discover {
+                padding: 15px 10px;
+            }
+            .discover h2 {
+                font-size: 20px;
+            }
+            .discover p {
+                font-size: 12px;
+            }
+            .discover-item img {
+                max-width: 250px;
+                margin: 0 8px;
+            }
+            .discover-text h3 {
+                font-size: 18px;
+            }
+            .discover-text p {
+                font-size: 12px;
+            }
+            .currencies {
+                padding: 15px 10px;
+            }
+            .currencies h2 {
+                font-size: 20px;
+            }
+            .currencies p {
+                font-size: 12px;
+            }
+            #youtube-video-wrapper iframe {
+                height: 150px;
+            }
+            .currency-item h3 {
+                font-size: 16px;
+            }
+            .currency-item p {
+                font-size: 12px;
+            }
+            .cta {
+                padding: 15px 10px;
+            }
+            .cta h3 {
+                font-size: 20px;
+            }
+            .cta p {
+                font-size: 12px;
+            }
+            .cta button {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            footer {
+                padding: 15px 10px;
+            }
+            .footer-nav a {
+                font-size: 11px;
+                margin: 0 6px;
+            }
+            .footer-social a {
+                font-size: 16px;
+                margin: 0 5px;
+            }
+            footer p {
+                font-size: 11px;
+            }
+            #chat-container {
+                width: 95%;
+            }
+            #chat-header {
+                font-size: 0.8em;
+                padding: 5px;
+            }
+            #chat-messages {
+                max-height: 180px;
+            }
+            #chat-input {
+                font-size: 0.7em;
+            }
+            #chat-send {
+                font-size: 0.7em;
+            }
+            .message {
+                font-size: 0.7em;
             }
         }
     </style>
 </head>
 <body>
-    <nav class="sidebar">
+    <nav class="topbar">
         <h3>Mục Lục</h3>
         <ul>
             <li><a href="#hero">Giới Thiệu</a></li>
@@ -338,9 +917,9 @@
             @if(!Auth::check())
                 <li><a href="{{ route('login') }}">Đăng Nhập/Đăng Ký</a></li>
             @else
-                <li class="user-info-sidebar">
+                <li class="user-info-topbar">
                     <img src="{{ Auth::user()->avatar ? asset('storage/' . Auth::user()->avatar) : 'https://via.placeholder.com/40' }}" alt="Avatar" class="user-avatar" onclick="goToProfile()">
-                    <span id="sidebar-token-display">Xin chào, {{ Auth::user()->name }}<br>(lần sử dụng: {{ Auth::user()->tokens }})</span>
+                    <span id="topbar-token-display">Xin chào, {{ Auth::user()->name }} (lần sử dụng: {{ Auth::user()->tokens }})</span>
                 </li>
                 @if(Auth::user()->role === 'admin')
                     <li><a href="{{ route('admin.dashboard') }}">Admin Panel</a></li>

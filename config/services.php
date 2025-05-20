@@ -13,6 +13,9 @@ return [
     | a conventional file to locate the various service credentials.
     |
     */
+'fastapi' => [
+    'url' => env('FASTAPI_URL', 'http://localhost:55015/chat'),
+],
 'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

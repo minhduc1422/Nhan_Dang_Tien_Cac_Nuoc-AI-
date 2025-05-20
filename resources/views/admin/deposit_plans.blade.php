@@ -13,7 +13,7 @@
 
         <div style="text-align: right; margin-bottom: 20px;">
             <a href="{{ route('admin.deposit_plans.create') }}" class="deposit-btn">Thêm gói nạp mới</a>
-        </div>zz
+        </div>
 
         <table class="admin-table">
             <thead>
